@@ -18,9 +18,6 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: 'Superclaim.io | Autonomous AI invoice collection',
   description: 'Your invoices. Collected. Autonomously. Powered by AI.',
-  icons: {
-    icon: '/Superclaim.io_favicon.png',
-  },
 }
 
 export default function RootLayout({

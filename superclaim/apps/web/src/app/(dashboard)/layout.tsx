@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -16,18 +17,72 @@ const navItems = [
     { href: '/dashboard/settings', label: 'Inställningar', icon: Settings },
 ];
 
-const notifications = [
-    { id: 1, text: 'Acme Corp öppnade ditt mejl', time: '2 min sedan', type: 'info' as const },
-    { id: 2, text: 'Globex Inc har betalat 4 200 SEK', time: '1 timme sedan', type: 'success' as const },
-    { id: 3, text: 'TechNova Solutions — steg 4 skickat', time: '3 timmar sedan', type: 'warning' as const },
+interface Notification {
+    id: string;
+    text: string;
+    time: string;
+    type: 'info' | 'success' | 'warning';
+    href?: string;
+}
+
+const defaultNotifications: Notification[] = [
+    { id: '1', text: 'Acme Corp öppnade ditt mejl', time: '2 min sedan', type: 'info' },
+    { id: '2', text: 'Globex Inc har betalat 4 200 SEK', time: '1 timme sedan', type: 'success', href: '/dashboard/claims' },
+    { id: '3', text: 'TechNova Solutions — steg 4 skickat', time: '3 timmar sedan', type: 'warning' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const router = useRouter();
     const [showNotifications, setShowNotifications] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [notifications, setNotifications] = useState<Notification[]>(defaultNotifications);
+    const [pendingEmailsCount, setPendingEmailsCount] = useState(0);
+    const [lastSeenCounts, setLastSeenCounts] = useState({ claims: 0, emails: 0 });
+    const [hasNotifiedEmails, setHasNotifiedEmails] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
     const userRef = useRef<HTMLDivElement>(null);
+
+    const fetchNotifications = async () => {
+        try {
+            const res = await fetch('/api/notifications');
+            const data = await res.json();
+            setNotifications(data.notifications || defaultNotifications);
+            const pending = data.pendingEmailsCount ?? 0;
+            const claimsCount = data.claimsCount ?? 0;
+            setPendingEmailsCount(pending);
+
+            if (pending > 0 && !pathname.includes('/dashboard/emails') && !hasNotifiedEmails) {
+                toast.info(`${pending} mejl väntar på godkännande`, {
+                    description: 'Gå till E-post för att granska.',
+                    action: {
+                        label: 'Öppna',
+                        onClick: () => router.push('/dashboard/emails'),
+                    },
+                });
+                setHasNotifiedEmails(true);
+            }
+
+            setLastSeenCounts((prev) => {
+                if (claimsCount > prev.claims && prev.claims > 0) {
+                    toast.success(`${claimsCount - prev.claims} nya ärenden`, {
+                        description: 'Gå till Ärenden för att se dem.',
+                        action: {
+                            label: 'Visa',
+                            onClick: () => router.push('/dashboard/claims'),
+                        },
+                    });
+                }
+                return { claims: claimsCount, emails: pending };
+            });
+        } catch { /* ignore */ }
+    };
+
+    useEffect(() => {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 45000);
+        return () => clearInterval(interval);
+    }, [pathname]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -99,7 +154,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 className="relative p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
                             >
                                 <Bell className="h-5 w-5" />
-                                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_6px_rgba(0,229,204,0.8)] animate-pulse" />
+                                {(pendingEmailsCount > 0 || notifications.length > 0) && (
+                                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-primary text-[10px] font-semibold text-background flex items-center justify-center px-1 shadow-[0_0_8px_rgba(0,229,204,0.5)]">
+                                        {pendingEmailsCount > 0 ? (pendingEmailsCount > 9 ? '9+' : pendingEmailsCount) : notifications.length > 9 ? '9+' : notifications.length}
+                                    </span>
+                                )}
                             </button>
 
                             {showNotifications && (
@@ -109,7 +168,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     </div>
                                     <div className="max-h-64 overflow-y-auto">
                                         {notifications.map((n) => (
-                                            <div key={n.id} className="px-4 py-3 hover:bg-primary/5 transition-colors cursor-pointer border-b border-[#ffffff05] last:border-0">
+                                            <Link
+                                                key={n.id}
+                                                href={n.href || '#'}
+                                                onClick={() => setShowNotifications(false)}
+                                                className="block px-4 py-3 hover:bg-primary/5 transition-colors border-b border-[#ffffff05] last:border-0"
+                                            >
                                                 <div className="flex items-start gap-3">
                                                     <div className={cn(
                                                         "mt-1 h-2 w-2 rounded-full shrink-0",
@@ -122,7 +186,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                                         <p className="text-xs text-muted-foreground mt-0.5">{n.time}</p>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </Link>
                                         ))}
                                     </div>
                                     <div className="p-3 border-t border-[#ffffff08]">

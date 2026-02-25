@@ -1,40 +1,115 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/shared/GlassCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import { Search, Filter } from 'lucide-react';
-import { useState } from 'react';
+import { Search, Filter, Download } from 'lucide-react';
+import { toast } from 'sonner';
 
-const allClaims = [
-    { id: 'acme-123', name: 'Acme Corp AB', amount: 14500, currency: 'SEK', dueDate: '12 okt 2025', daysOverdue: 14, step: 2, status: 'active' as const },
-    { id: 'tech-456', name: 'TechNova Solutions', amount: 82000, currency: 'SEK', dueDate: '01 okt 2025', daysOverdue: 25, step: 4, status: 'escalated' as const },
-    { id: 'glob-789', name: 'Globex Inc', amount: 4200, currency: 'SEK', dueDate: '24 okt 2025', daysOverdue: 0, step: 0, status: 'paid' as const },
-    { id: 'nord-012', name: 'Nordisk Design AB', amount: 28900, currency: 'SEK', dueDate: '18 okt 2025', daysOverdue: 7, step: 1, status: 'active' as const },
-    { id: 'sven-345', name: 'Svensson & Co', amount: 115000, currency: 'SEK', dueDate: '05 okt 2025', daysOverdue: 20, step: 3, status: 'active' as const },
-    { id: 'berg-678', name: 'Berglund Transport', amount: 7800, currency: 'SEK', dueDate: '20 sep 2025', daysOverdue: 35, step: 5, status: 'escalated' as const },
-    { id: 'holm-901', name: 'Holmström IT', amount: 31400, currency: 'SEK', dueDate: '28 okt 2025', daysOverdue: 0, step: 0, status: 'paid' as const },
-    { id: 'karl-234', name: 'Karlsson Bygg AB', amount: 56000, currency: 'SEK', dueDate: '10 okt 2025', daysOverdue: 16, step: 2, status: 'active' as const },
-];
+interface Claim {
+    id: string;
+    debtor_name: string;
+    amount: number;
+    currency: string;
+    due_date: string;
+    current_step: number;
+    status: 'active' | 'paid' | 'escalated' | 'cancelled';
+    days_overdue?: number;
+}
+
+function escapeCsvCell(val: string | number): string {
+    const s = String(val);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+}
+
+function exportToCsv(claims: Claim[]) {
+    const headers = ['Gäldenär', 'Belopp', 'Valuta', 'Förfallodatum', 'Försenad (dagar)', 'Steg', 'Status'];
+    const rows = claims.map((c) => [
+        escapeCsvCell(c.debtor_name),
+        escapeCsvCell(c.amount),
+        escapeCsvCell(c.currency),
+        escapeCsvCell(new Date(c.due_date).toLocaleDateString('sv-SE')),
+        escapeCsvCell(c.days_overdue ?? 0),
+        escapeCsvCell(c.current_step),
+        escapeCsvCell(c.status === 'active' ? 'Aktiv' : c.status === 'paid' ? 'Betald' : c.status === 'escalated' ? 'Eskalerad' : 'Avbruten'),
+    ]);
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `superclaim-arenden-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
 export default function ClaimsListPage() {
     const router = useRouter();
+    const [claims, setClaims] = useState<Claim[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
 
-    const filtered = allClaims.filter((c) => {
-        const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+    useEffect(() => {
+        fetch('/api/claims')
+            .then((res) => res.json())
+            .then((data) => {
+                const list = (data.claims || []).map((c: any) => ({
+                    ...c,
+                    days_overdue: c.days_overdue ?? Math.max(0, Math.floor((Date.now() - new Date(c.due_date).getTime()) / 86400000)),
+                }));
+                setClaims(list);
+                setLoading(false);
+            })
+            .catch(() => setLoading(false));
+    }, []);
+
+    const filtered = claims.filter((c) => {
+        const matchesSearch = c.debtor_name.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
 
+    const handleExport = () => {
+        exportToCsv(filtered);
+        toast.success('Export klar 📥', {
+            description: `${filtered.length} ärenden exporterade till CSV.`,
+        });
+    };
+
+    if (loading) {
+        return (
+            <div className="space-y-8 animate-in fade-in duration-300">
+                <div className="h-8 w-56 bg-[#ffffff08] rounded animate-pulse" />
+                <div className="h-96 bg-[#ffffff08] rounded-xl animate-pulse" />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div>
-                <h1 className="text-3xl font-semibold tracking-tight">Ärenden</h1>
-                <p className="text-muted-foreground mt-1">Alla indrivningsärenden på ett ställe.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-semibold tracking-tight">Ärenden</h1>
+                    <p className="text-muted-foreground mt-1">Alla indrivningsärenden på ett ställe.</p>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    disabled={filtered.length === 0}
+                    className="border-[#ffffff10] bg-[#122220]/50 hover:bg-primary/10 hover:border-primary/20 hover:text-primary text-muted-foreground shrink-0"
+                >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportera CSV
+                </Button>
             </div>
 
             {/* Filters */}
@@ -85,18 +160,18 @@ export default function ClaimsListPage() {
                                 className="border-[#ffffff08] hover:bg-primary/5 transition-colors cursor-pointer"
                                 onClick={() => router.push(`/dashboard/claims/${claim.id}`)}
                             >
-                                <TableCell className="px-6 py-4 font-medium">{claim.name}</TableCell>
+                                <TableCell className="px-6 py-4 font-medium">{claim.debtor_name}</TableCell>
                                 <TableCell>{claim.amount.toLocaleString('sv-SE')} {claim.currency}</TableCell>
                                 <TableCell className={claim.status === 'paid' ? 'text-muted-foreground' : 'text-destructive font-medium'}>
-                                    {claim.dueDate}
+                                    {new Date(claim.due_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </TableCell>
-                                <TableCell>{claim.daysOverdue > 0 ? `${claim.daysOverdue} dagar` : '-'}</TableCell>
+                                <TableCell>{(claim.days_overdue ?? 0) > 0 ? `${claim.days_overdue} dagar` : '-'}</TableCell>
                                 <TableCell>
-                                    {claim.step > 0 ? (
+                                    {claim.current_step > 0 ? (
                                         <div className="flex items-center gap-2">
-                                            <span className={`h-2 w-2 rounded-full ${claim.step <= 2 ? 'bg-primary animate-pulse' : 'bg-[#f59e0b]'
+                                            <span className={`h-2 w-2 rounded-full ${claim.current_step <= 2 ? 'bg-primary animate-pulse' : 'bg-[#f59e0b]'
                                                 }`} />
-                                            Steg {claim.step}
+                                            Steg {claim.current_step}
                                         </div>
                                     ) : '-'}
                                 </TableCell>

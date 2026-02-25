@@ -94,6 +94,7 @@ export async function PATCH(request: Request) {
 
         if (action === 'edit') {
             const { subject, body: newBody } = body
+            if (typeof subject !== 'string' || typeof newBody !== 'string') return NextResponse.json({ error: 'Subject and body required' }, { status: 400 })
             await supabase
                 .from('email_drafts')
                 .update({ subject, body: newBody, status: 'pending' })

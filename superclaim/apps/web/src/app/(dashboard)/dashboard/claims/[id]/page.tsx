@@ -1,3 +1,7 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Pause, XCircle, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,70 +10,112 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { StepIndicator } from '@/components/claims/StepIndicator';
 import { Timeline } from '@/components/claims/Timeline';
 
-// Mock data
-const claim = {
-    id: 'clm_abc123',
-    debtorName: 'Acme Corp AB',
-    debtorEmail: 'faktura@acmecorp.se',
-    debtorPhone: '+46701234567',
-    debtorCountry: 'SE',
-    amount: 14500,
-    currency: 'SEK',
-    dueDate: '2025-10-12',
-    daysOverdue: 14,
-    source: 'niora',
-    status: 'active' as const,
-    currentStep: 2,
-    paymentLink: 'https://pay.niora.ai/inv/xyz',
-};
+interface Claim {
+    id: string;
+    debtor_name: string;
+    debtor_email: string;
+    debtor_phone?: string | null;
+    amount: number;
+    currency: string;
+    due_date: string;
+    days_overdue: number;
+    invoice_number?: string;
+    source?: string;
+    status: 'active' | 'paid' | 'escalated' | 'cancelled';
+    current_step: number;
+    payment_link?: string;
+}
 
-const timelineEvents = [
-    {
-        step: 1,
-        channel: 'email' as const,
-        subject: 'Påminnelse: Faktura #INV-2024-0847',
-        body: 'Hej Acme Corp, vi vill vänligt påminna om att faktura #INV-2024-0847 på 14 500 SEK förföll den 12 oktober. Vi ber dig vänligen genomföra betalningen snarast.',
-        sentAt: '15 okt 2025',
-        openedAt: '15 okt 14:32',
-    },
-    {
-        step: 2,
-        channel: 'email' as const,
-        subject: 'Uppföljning: Obetald faktura #INV-2024-0847',
-        body: 'Hej, vi har ännu inte mottagit betalning för faktura #INV-2024-0847 på 14 500 SEK. Vi vill gärna lösa detta smidigt. Vänligen betala via länken nedan eller kontakta oss om du har frågor.',
-        sentAt: '22 okt 2025',
-        openedAt: null,
-    },
-];
+interface TimelineEvent {
+    step: number;
+    channel: 'email' | 'sms';
+    subject: string;
+    body: string;
+    sentAt: string;
+    openedAt?: string | null;
+}
+
+function formatTimelineDate(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatTimelineTime(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+}
 
 export default function ClaimDetailPage() {
+    const params = useParams();
+    const router = useRouter();
+    const id = params.id as string;
+    const [claim, setClaim] = useState<Claim | null>(null);
+    const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!id) return;
+        fetch(`/api/claims/${id}`)
+            .then((res) => res.json())
+            .then((data) => {
+                setClaim(data.claim);
+                const raw = data.timeline || [];
+                setTimeline(raw.map((e: any) => ({
+                    ...e,
+                    channel: (e.channel || 'email') as 'email' | 'sms',
+                    sentAt: formatTimelineDate(e.sentAt),
+                    openedAt: e.openedAt ? formatTimelineTime(e.openedAt) : null,
+                })));
+                setLoading(false);
+            })
+            .catch(() => setLoading(false));
+    }, [id]);
+
+    if (loading || !claim) {
+        return (
+            <div className="space-y-8 animate-in fade-in duration-300">
+                <div className="h-12 w-64 bg-[#ffffff08] rounded animate-pulse" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className="h-48 bg-[#ffffff08] rounded-xl animate-pulse" />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
-                    <Link href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+                    <Link
+                        href="/dashboard/claims"
+                        className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all"
+                    >
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
                     <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-semibold tracking-tight">{claim.debtorName}</h1>
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h1 className="text-2xl font-semibold tracking-tight">{claim.debtor_name}</h1>
                             <StatusBadge status={claim.status} />
                         </div>
                         <p className="text-sm text-muted-foreground mt-0.5">Ärende {claim.id}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                        <Pause className="h-4 w-4 mr-2" /> Pausa
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
-                        <XCircle className="h-4 w-4 mr-2" /> Avbryt
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-amber-400 hover:text-amber-300 hover:bg-amber-400/10">
-                        <AlertTriangle className="h-4 w-4 mr-2" /> Eskalera
-                    </Button>
-                </div>
+                {claim.status === 'active' && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                            <Pause className="h-4 w-4 mr-2" /> Pausa
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                            <XCircle className="h-4 w-4 mr-2" /> Avbryt
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-amber-400 hover:text-amber-300 hover:bg-amber-400/10">
+                            <AlertTriangle className="h-4 w-4 mr-2" /> Eskalera
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* Info panels */}
@@ -79,28 +125,34 @@ export default function ClaimDetailPage() {
                     <dl className="space-y-3">
                         <div className="flex justify-between">
                             <dt className="text-sm text-muted-foreground">Belopp</dt>
-                            <dd className="text-sm font-medium">{claim.amount.toLocaleString()} {claim.currency}</dd>
+                            <dd className="text-sm font-medium">{claim.amount.toLocaleString('sv-SE')} {claim.currency}</dd>
                         </div>
                         <div className="flex justify-between">
                             <dt className="text-sm text-muted-foreground">Förfallodatum</dt>
-                            <dd className="text-sm font-medium">{claim.dueDate}</dd>
+                            <dd className="text-sm font-medium">{new Date(claim.due_date).toLocaleDateString('sv-SE')}</dd>
                         </div>
                         <div className="flex justify-between">
                             <dt className="text-sm text-muted-foreground">Dagar försenad</dt>
-                            <dd className="text-sm font-medium text-destructive">{claim.daysOverdue} dagar</dd>
+                            <dd className="text-sm font-medium text-destructive">{claim.days_overdue} dagar</dd>
+                        </div>
+                        <div className="flex justify-between">
+                            <dt className="text-sm text-muted-foreground">Fakturanr</dt>
+                            <dd className="text-sm font-medium">{claim.invoice_number || '—'}</dd>
                         </div>
                         <div className="flex justify-between">
                             <dt className="text-sm text-muted-foreground">Källa</dt>
-                            <dd className="text-sm font-medium capitalize">{claim.source}</dd>
+                            <dd className="text-sm font-medium capitalize">{claim.source || 'niora'}</dd>
                         </div>
-                        <div className="flex justify-between items-center">
-                            <dt className="text-sm text-muted-foreground">Betalningslänk</dt>
-                            <dd>
-                                <a href={claim.paymentLink} target="_blank" className="text-sm text-primary hover:underline flex items-center gap-1">
-                                    Öppna <ExternalLink className="h-3 w-3" />
-                                </a>
-                            </dd>
-                        </div>
+                        {claim.payment_link && (
+                            <div className="flex justify-between items-center">
+                                <dt className="text-sm text-muted-foreground">Betalningslänk</dt>
+                                <dd>
+                                    <a href={claim.payment_link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
+                                        Öppna <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                </dd>
+                            </div>
+                        )}
                     </dl>
                 </GlassCard>
 
@@ -109,19 +161,15 @@ export default function ClaimDetailPage() {
                     <dl className="space-y-3">
                         <div className="flex justify-between">
                             <dt className="text-sm text-muted-foreground">Namn</dt>
-                            <dd className="text-sm font-medium">{claim.debtorName}</dd>
+                            <dd className="text-sm font-medium">{claim.debtor_name}</dd>
                         </div>
                         <div className="flex justify-between">
                             <dt className="text-sm text-muted-foreground">E-post</dt>
-                            <dd className="text-sm font-medium">{claim.debtorEmail}</dd>
+                            <dd className="text-sm font-medium">{claim.debtor_email || '—'}</dd>
                         </div>
                         <div className="flex justify-between">
                             <dt className="text-sm text-muted-foreground">Telefon</dt>
-                            <dd className="text-sm font-medium">{claim.debtorPhone || '—'}</dd>
-                        </div>
-                        <div className="flex justify-between">
-                            <dt className="text-sm text-muted-foreground">Land</dt>
-                            <dd className="text-sm font-medium">{claim.debtorCountry}</dd>
+                            <dd className="text-sm font-medium">{claim.debtor_phone || '—'}</dd>
                         </div>
                     </dl>
                 </GlassCard>
@@ -130,13 +178,19 @@ export default function ClaimDetailPage() {
             {/* Step Indicator */}
             <GlassCard className="p-6">
                 <h3 className="text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wider">Indrivningssteg</h3>
-                <StepIndicator currentStep={claim.currentStep} />
+                <StepIndicator currentStep={claim.current_step} />
             </GlassCard>
 
             {/* Timeline */}
             <div>
                 <h3 className="text-lg font-medium mb-6">Kommunikationshistorik</h3>
-                <Timeline events={timelineEvents} />
+                {timeline.length > 0 ? (
+                    <Timeline events={timeline} />
+                ) : (
+                    <GlassCard className="p-12 text-center">
+                        <p className="text-muted-foreground">Ingen kommunikation ännu. AI-agenten kommer att skicka första påminnelsen när det är dags.</p>
+                    </GlassCard>
+                )}
             </div>
         </div>
     );

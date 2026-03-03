@@ -225,6 +225,7 @@ export default function OnboardingPage() {
                     )}
                     {currentStep === 2 && (
                         <ChannelsStep
+                            companyName={companyName}
                             preferredErp={preferredErp} setPreferredErp={setPreferredErp}
                             selectedInvoices={selectedInvoices} setSelectedInvoices={setSelectedInvoices}
                             autoSync={autoSync} setAutoSync={setAutoSync}

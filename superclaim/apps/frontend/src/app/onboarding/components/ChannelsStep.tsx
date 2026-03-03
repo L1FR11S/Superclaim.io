@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, Check, ArrowRight, RefreshCw } from 'lucide-react'
+import { Loader2, Check, ArrowRight, RefreshCw, Mail, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 
 const erpSystems = [
@@ -11,7 +11,6 @@ const erpSystems = [
     { id: 'niora', name: 'Niora', color: '#7C3AED' },
 ]
 
-// Mock invoices that would come from the ERP
 const mockInvoices = [
     { id: 'F-2024-0847', debtor: 'Karlsson Bygg AB', amount: 12500, dueDate: '2024-12-15', daysOverdue: 47 },
     { id: 'F-2024-0912', debtor: 'Lindström Fastigheter', amount: 28900, dueDate: '2025-01-10', daysOverdue: 22 },
@@ -20,7 +19,17 @@ const mockInvoices = [
     { id: 'F-2025-0034', debtor: 'Svensson & Co HB', amount: 6200, dueDate: '2025-01-28', daysOverdue: 4 },
 ]
 
+/** Derive inbox ID from company name, same logic as backend */
+function toInboxId(name: string): string {
+    return name
+        .toLowerCase()
+        .replace(/\s+/g, '')
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 30)
+}
+
 interface ChannelsStepProps {
+    companyName: string
     preferredErp: string | null
     setPreferredErp: (v: string | null) => void
     selectedInvoices: string[]
@@ -32,6 +41,7 @@ interface ChannelsStepProps {
 }
 
 export function ChannelsStep({
+    companyName,
     preferredErp, setPreferredErp,
     selectedInvoices, setSelectedInvoices,
     autoSync, setAutoSync,
@@ -40,10 +50,12 @@ export function ChannelsStep({
     const [connected, setConnected] = useState(false)
     const [connecting, setConnecting] = useState(false)
 
+    const inboxId = toInboxId(companyName || 'dittforetag')
+    const emailPreview = `${inboxId}@agentmail.to`
+
     const handleConnect = (erpId: string) => {
         setPreferredErp(erpId)
         setConnecting(true)
-        // Simulate OAuth connection
         setTimeout(() => {
             setConnecting(false)
             setConnected(true)
@@ -81,8 +93,30 @@ export function ChannelsStep({
                 <p className="text-sm text-muted-foreground">
                     {connected
                         ? 'Välj vilka fakturor du vill importera till Superclaim.'
-                        : 'Anslut ditt bokföringssystem för att hämta obetalda fakturor.'
+                        : 'Anslut ditt bokföringssystem och konfigurera agentens e-postidentitet.'
                     }
+                </p>
+            </div>
+
+            {/* Agent Email Identity */}
+            <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Mail className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold text-primary">Agentens e-postadress</p>
+                        <p className="text-[10px] text-muted-foreground">Härifrån skickas alla inkassomejl</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-background/60 border border-white/[0.08]">
+                    <Sparkles className="h-3.5 w-3.5 text-primary/50 shrink-0" />
+                    <span className="text-sm font-medium text-foreground flex-1 truncate">{emailPreview}</span>
+                    <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full font-medium shrink-0">Auto</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/60 px-1">
+                    Baserat på ditt företagsnamn. Du kan koppla en egen domän i inställningar efter aktivering.
                 </p>
             </div>
 
@@ -95,9 +129,9 @@ export function ChannelsStep({
                                 key={erp.id}
                                 onClick={() => handleConnect(erp.id)}
                                 disabled={connecting}
-                                className={`p-4 rounded-xl border text-center transition-all hover:border-[${erp.color}]/30 ${connecting && preferredErp === erp.id
-                                        ? 'border-primary/30 bg-primary/5'
-                                        : 'border-[#ffffff08] bg-white/[0.02] hover:bg-white/[0.04]'
+                                className={`p-4 rounded-xl border text-center transition-all ${connecting && preferredErp === erp.id
+                                    ? 'border-primary/30 bg-primary/5'
+                                    : 'border-[#ffffff08] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10'
                                     }`}
                             >
                                 <span className="text-sm font-semibold block mb-1">{erp.name}</span>
@@ -130,11 +164,10 @@ export function ChannelsStep({
 
                     {/* Invoice list */}
                     <div className="rounded-lg border border-white/[0.06] overflow-hidden">
-                        {/* Header */}
                         <div className="px-3 py-2 bg-white/[0.02] border-b border-white/[0.06] flex items-center justify-between">
                             <button onClick={toggleAll} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                                 <div className={`h-3.5 w-3.5 rounded border transition-all flex items-center justify-center ${selectedInvoices.length === mockInvoices.length
-                                        ? 'bg-primary border-primary' : 'border-white/20'
+                                    ? 'bg-primary border-primary' : 'border-white/20'
                                     }`}>
                                     {selectedInvoices.length === mockInvoices.length && <Check className="h-2.5 w-2.5 text-background" />}
                                 </div>
@@ -143,7 +176,6 @@ export function ChannelsStep({
                             <span className="text-[10px] text-muted-foreground">{selectedInvoices.length} av {mockInvoices.length} valda</span>
                         </div>
 
-                        {/* Rows */}
                         {mockInvoices.map((inv) => (
                             <button
                                 key={inv.id}
@@ -151,7 +183,7 @@ export function ChannelsStep({
                                 className="w-full px-3 py-2.5 flex items-center gap-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-colors text-left"
                             >
                                 <div className={`h-3.5 w-3.5 rounded border transition-all flex items-center justify-center shrink-0 ${selectedInvoices.includes(inv.id)
-                                        ? 'bg-primary border-primary' : 'border-white/20'
+                                    ? 'bg-primary border-primary' : 'border-white/20'
                                     }`}>
                                     {selectedInvoices.includes(inv.id) && <Check className="h-2.5 w-2.5 text-background" />}
                                 </div>
@@ -188,7 +220,6 @@ export function ChannelsStep({
                         </div>
                     </button>
 
-                    {/* Summary */}
                     {selectedInvoices.length > 0 && (
                         <div className="text-center text-xs text-muted-foreground">
                             <span className="text-primary font-medium">{selectedInvoices.length} fakturor</span> • Totalt <span className="text-foreground font-medium">{totalSelected.toLocaleString('sv-SE')} kr</span>
@@ -205,7 +236,7 @@ export function ChannelsStep({
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                     connected
                         ? <>Importera {selectedInvoices.length} fakturor <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
-                        : <>Hoppa över för nu <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
+                        : <>Fortsätt <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
                 )}
             </Button>
         </div>

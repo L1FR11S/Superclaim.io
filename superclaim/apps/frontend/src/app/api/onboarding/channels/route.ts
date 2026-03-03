@@ -39,10 +39,19 @@ export async function PUT(request: Request) {
         // Auto-create AgentMail inbox if not exists
         if (!inboxId) {
             try {
+                // Derive a clean inbox ID from the company name
+                // e.g. "Karlsson Bygg AB" → "karlssonbygg"
+                const baseId = org.name
+                    .toLowerCase()
+                    .replace(/\s+/g, '')         // remove spaces
+                    .replace(/[^a-z0-9]/g, '')   // only alphanumeric
+                    .slice(0, 30)                 // max 30 chars
+
                 const pod = await createPod(org.name)
                 podId = (pod as any).podId || (pod as any).pod_id
 
                 const inbox = await createAgentInbox({
+                    inboxId: baseId || undefined,
                     displayName: `${org.name} Inkasso`,
                     podId,
                 })

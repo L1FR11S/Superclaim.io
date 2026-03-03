@@ -44,11 +44,13 @@ export async function deletePod(podId: string) {
  * Returns the inbox_id which is the email address.
  */
 export async function createAgentInbox(opts?: {
+    inboxId?: string
     displayName?: string
     domain?: string
     podId?: string
 }) {
     const params: any = {}
+    if (opts?.inboxId) params.inboxId = opts.inboxId
     if (opts?.displayName) params.displayName = opts.displayName
     if (opts?.domain) params.domain = opts.domain
     if (opts?.podId) params.podId = opts.podId

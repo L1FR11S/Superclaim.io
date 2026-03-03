@@ -1,105 +1,120 @@
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
 
-// E-post preview/approve API
 export async function GET() {
-    const MOCK_DRAFTS = [
-        {
-            id: 'draft-1',
-            claim_id: 'acme-123',
-            to: 'ekonomi@acme.se',
-            subject: 'Påminnelse: Faktura INV-2025-001 förfallen',
-            body: 'Hej Acme Corp,\n\nVi vill vänligt påminna om att faktura INV-2025-001 på 14 500 SEK förföll den 12 oktober 2025. Vi ber dig vänligen att genomföra betalningen snarast möjligt.\n\nOm betalning redan har skett, vänligen bortse från detta meddelande.\n\nMed vänliga hälsningar,\nSuperclaim AI',
-            tone: 'professional',
-            step: 2,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            claims: { debtor_name: 'Acme Corp AB', debtor_email: 'ekonomi@acme.se', amount: 14500, currency: 'SEK', invoice_number: 'INV-2025-001' },
-        },
-        {
-            id: 'draft-2',
-            claim_id: 'sven-345',
-            to: 'faktura@svensson.se',
-            subject: 'Viktigt: Obetald faktura INV-2025-005',
-            body: 'Hej Svensson & Co,\n\nTrots tidigare påminnelser har vi inte mottagit betalning för faktura INV-2025-005 på 115 000 SEK. Fakturan förföll den 5 oktober 2025.\n\nVi ber dig att omgående reglera skulden för att undvika ytterligare åtgärder via inkasso.\n\nMed vänliga hälsningar,\nSuperclaim AI',
-            tone: 'professional',
-            step: 3,
-            status: 'pending',
-            created_at: new Date(Date.now() - 3600_000).toISOString(),
-            claims: { debtor_name: 'Svensson & Co', debtor_email: 'faktura@svensson.se', amount: 115000, currency: 'SEK', invoice_number: 'INV-2025-005' },
-        },
-    ];
-
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return NextResponse.json({ drafts: [], source: 'unauthorized' })
 
-        if (!user) return NextResponse.json({ drafts: MOCK_DRAFTS, source: 'mock' })
+        const admin = createAdminClient()
 
-        const { data: org } = await supabase
+        const { data: org } = await admin
             .from('organizations')
             .select('id')
             .eq('email', user.email)
             .single()
 
-        if (!org) return NextResponse.json({ drafts: MOCK_DRAFTS, source: 'mock' })
+        if (!org) return NextResponse.json({ drafts: [], source: 'no-org' })
 
-        // Fetch pending email drafts
-        const { data: drafts } = await supabase
+        const { data: drafts } = await admin
             .from('email_drafts')
             .select('*, claims(debtor_name, debtor_email, amount, currency, invoice_number)')
             .eq('org_id', org.id)
             .eq('status', 'pending')
             .order('created_at', { ascending: false })
 
-        if (!drafts || drafts.length === 0) {
-            // Return mock drafts as fallback
-            return NextResponse.json({ drafts: MOCK_DRAFTS, source: 'mock' })
-        }
-
-        return NextResponse.json({ drafts, source: 'database' })
-    } catch {
-        return NextResponse.json({ drafts: MOCK_DRAFTS, source: 'error' })
+        return NextResponse.json({ drafts: drafts || [], source: 'database' })
+    } catch (err: any) {
+        return NextResponse.json({ drafts: [], source: 'error', error: err.message })
     }
 }
 
-// Approve or reject a draft
 export async function PATCH(request: Request) {
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+        const admin = createAdminClient()
         const body = await request.json()
-        const { draftId, action } = body // action: 'approve' | 'reject' | 'edit'
+        const { draftId, action } = body
 
         if (action === 'approve') {
-            // Mark draft as approved — agent will send it
-            await supabase
+            const { data: draft } = await admin
                 .from('email_drafts')
-                .update({ status: 'approved', approved_at: new Date().toISOString() })
+                .select('*, claims(debtor_email, org_id, current_step, agentmail_thread_id)')
+                .eq('id', draftId)
+                .single()
+
+            if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
+
+            const { data: settings } = await admin
+                .from('org_settings')
+                .select('agentmail_inbox_id, step_delays')
+                .eq('org_id', draft.org_id)
+                .single()
+
+            let sentResult: { messageId?: string; threadId?: string } = {}
+
+            if (settings?.agentmail_inbox_id) {
+                const { sendCollectionEmail } = await import('@/lib/email/agentmail')
+                sentResult = await sendCollectionEmail({
+                    inboxId: settings.agentmail_inbox_id,
+                    to: draft.to,
+                    subject: draft.subject,
+                    body: draft.body,
+                })
+            }
+
+            await admin
+                .from('email_drafts')
+                .update({ status: 'approved', sent_at: new Date().toISOString() })
                 .eq('id', draftId)
 
-            return NextResponse.json({ message: 'Mejl godkänt och schemalagt för skickning' })
+            await admin.from('claim_communications').insert({
+                claim_id: draft.claim_id,
+                org_id: draft.org_id,
+                step: draft.step,
+                channel: 'email',
+                direction: 'outbound',
+                subject: draft.subject,
+                body: draft.body,
+                agentmail_message_id: sentResult.messageId || null,
+                agentmail_thread_id: sentResult.threadId || null,
+            })
+
+            const delays = settings?.step_delays || { step1: 3, step2: 7, step3: 7, step4: 8 }
+            const delayKey = `step${draft.step}`
+            const delayDays = (delays as Record<string, number>)[delayKey] ?? 7
+            const nextActionAt = new Date()
+            nextActionAt.setDate(nextActionAt.getDate() + delayDays)
+
+            await admin
+                .from('claims')
+                .update({
+                    current_step: draft.step,
+                    last_action_at: new Date().toISOString(),
+                    next_action_at: nextActionAt.toISOString(),
+                    agentmail_thread_id: sentResult.threadId || (draft.claims as any)?.agentmail_thread_id,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', draft.claim_id)
+
+            return NextResponse.json({ message: 'Mejl godkänt och skickat' })
         }
 
         if (action === 'reject') {
-            await supabase
-                .from('email_drafts')
-                .update({ status: 'rejected' })
-                .eq('id', draftId)
-
+            await admin.from('email_drafts').update({ status: 'rejected' }).eq('id', draftId)
             return NextResponse.json({ message: 'Mejl avslaget' })
         }
 
         if (action === 'edit') {
             const { subject, body: newBody } = body
-            if (typeof subject !== 'string' || typeof newBody !== 'string') return NextResponse.json({ error: 'Subject and body required' }, { status: 400 })
-            await supabase
-                .from('email_drafts')
-                .update({ subject, body: newBody, status: 'pending' })
-                .eq('id', draftId)
-
+            if (typeof subject !== 'string' || typeof newBody !== 'string')
+                return NextResponse.json({ error: 'Subject and body required' }, { status: 400 })
+            await admin.from('email_drafts').update({ subject, body: newBody, status: 'pending' }).eq('id', draftId)
             return NextResponse.json({ message: 'Utkast uppdaterat' })
         }
 

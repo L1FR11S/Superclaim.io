@@ -105,13 +105,40 @@ export default function ClaimDetailPage() {
                 </div>
                 {claim.status === 'active' && (
                     <div className="flex items-center gap-2 flex-wrap">
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground"
+                            onClick={async () => {
+                                const res = await fetch(`/api/claims/${id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'pause' }),
+                                });
+                                if (res.ok) { setClaim({ ...claim, status: 'cancelled' as any }); router.refresh(); }
+                            }}
+                        >
                             <Pause className="h-4 w-4 mr-2" /> Pausa
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={async () => {
+                                const res = await fetch(`/api/claims/${id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'cancel' }),
+                                });
+                                if (res.ok) { setClaim({ ...claim, status: 'cancelled' }); }
+                            }}
+                        >
                             <XCircle className="h-4 w-4 mr-2" /> Avbryt
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-amber-400 hover:text-amber-300 hover:bg-amber-400/10">
+                        <Button variant="ghost" size="sm" className="text-amber-400 hover:text-amber-300 hover:bg-amber-400/10"
+                            onClick={async () => {
+                                const res = await fetch(`/api/claims/${id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'escalate' }),
+                                });
+                                if (res.ok) { setClaim({ ...claim, status: 'escalated' }); }
+                            }}
+                        >
                             <AlertTriangle className="h-4 w-4 mr-2" /> Eskalera
                         </Button>
                     </div>

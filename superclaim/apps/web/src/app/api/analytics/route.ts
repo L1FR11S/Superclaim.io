@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -6,30 +7,27 @@ export async function GET() {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
-        if (!user) {
-            return NextResponse.json(mockAnalytics())
-        }
+        if (!user) return NextResponse.json(emptyAnalytics('no_auth'))
 
-        const { data: org } = await supabase
+        const admin = createAdminClient()
+
+        const { data: org } = await admin
             .from('organizations')
             .select('id')
             .eq('email', user.email)
             .single()
 
-        if (!org) {
-            return NextResponse.json(mockAnalytics())
-        }
+        if (!org) return NextResponse.json(emptyAnalytics('no_org'))
 
-        const { data: claims } = await supabase
+        const { data: claims } = await admin
             .from('claims')
             .select('*')
             .eq('org_id', org.id)
 
         if (!claims || claims.length === 0) {
-            return NextResponse.json(mockAnalytics())
+            return NextResponse.json(emptyAnalytics('empty'))
         }
 
-        // Calculate monthly stats
         const monthlyData: Record<string, { collected: number; created: number }> = {}
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec']
 
@@ -51,6 +49,21 @@ export async function GET() {
             }, 0) / paid.length)
             : 0
 
+        const { data: runs } = await admin
+            .from('agent_runs')
+            .select('*')
+            .eq('org_id', org.id)
+            .order('started_at', { ascending: false })
+            .limit(10)
+
+        const { data: comms } = await admin
+            .from('claim_communications')
+            .select('id, channel, direction')
+            .eq('org_id', org.id)
+
+        const emailsSent = comms?.filter(c => c.direction === 'outbound' && c.channel === 'email').length || 0
+        const repliesReceived = comms?.filter(c => c.direction === 'inbound').length || 0
+
         return NextResponse.json({
             monthlyCollected: Object.entries(monthlyData).map(([month, data]) => ({ month, amount: data.collected })),
             monthlyClaims: Object.entries(monthlyData).map(([month, data]) => ({ month, count: data.created })),
@@ -58,35 +71,28 @@ export async function GET() {
             avgDaysToCollect: avgDays,
             totalClaims: claims.length,
             totalCollected: paid.reduce((s, c) => s + (c.amount || 0), 0),
+            emailsSent,
+            repliesReceived,
+            recentRuns: runs || [],
             source: 'database',
         })
-    } catch {
-        return NextResponse.json(mockAnalytics())
+    } catch (err: any) {
+        console.error('[Analytics Error]', err.message)
+        return NextResponse.json(emptyAnalytics('error'))
     }
 }
 
-function mockAnalytics() {
+function emptyAnalytics(source: string) {
     return {
-        monthlyCollected: [
-            { month: 'Jul', amount: 32000 },
-            { month: 'Aug', amount: 48000 },
-            { month: 'Sep', amount: 67000 },
-            { month: 'Okt', amount: 45200 },
-            { month: 'Nov', amount: 58000 },
-            { month: 'Dec', amount: 72000 },
-        ],
-        monthlyClaims: [
-            { month: 'Jul', count: 8 },
-            { month: 'Aug', count: 12 },
-            { month: 'Sep', count: 15 },
-            { month: 'Okt', count: 11 },
-            { month: 'Nov', count: 18 },
-            { month: 'Dec', count: 14 },
-        ],
-        successRate: 78,
-        avgDaysToCollect: 12,
-        totalClaims: 78,
-        totalCollected: 322200,
-        source: 'mock',
+        monthlyCollected: [],
+        monthlyClaims: [],
+        successRate: 0,
+        avgDaysToCollect: 0,
+        totalClaims: 0,
+        totalCollected: 0,
+        emailsSent: 0,
+        repliesReceived: 0,
+        recentRuns: [],
+        source,
     }
 }

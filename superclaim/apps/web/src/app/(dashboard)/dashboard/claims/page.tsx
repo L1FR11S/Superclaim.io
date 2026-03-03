@@ -7,8 +7,9 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, Download } from 'lucide-react';
+import { Search, Filter, Download, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { NewClaimModal } from '@/components/claims/NewClaimModal';
 
 interface Claim {
     id: string;
@@ -56,8 +57,10 @@ export default function ClaimsListPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [showNewClaim, setShowNewClaim] = useState(false);
 
-    useEffect(() => {
+    const loadClaims = () => {
+        setLoading(true);
         fetch('/api/claims')
             .then((res) => res.json())
             .then((data) => {
@@ -69,7 +72,9 @@ export default function ClaimsListPage() {
                 setLoading(false);
             })
             .catch(() => setLoading(false));
-    }, []);
+    };
+
+    useEffect(() => { loadClaims(); }, []);
 
     const filtered = claims.filter((c) => {
         const matchesSearch = c.debtor_name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -100,16 +105,25 @@ export default function ClaimsListPage() {
                     <h1 className="text-3xl font-semibold tracking-tight">Ärenden</h1>
                     <p className="text-muted-foreground mt-1">Alla indrivningsärenden på ett ställe.</p>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExport}
-                    disabled={filtered.length === 0}
-                    className="border-[#ffffff10] bg-[#122220]/50 hover:bg-primary/10 hover:border-primary/20 hover:text-primary text-muted-foreground shrink-0"
-                >
-                    <Download className="h-4 w-4 mr-2" />
-                    Exportera CSV
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        onClick={() => setShowNewClaim(true)}
+                        className="bg-gradient-to-r from-primary to-[#00b8a3] text-background font-semibold shadow-[0_0_16px_rgba(0,229,204,0.2)] hover:shadow-[0_0_24px_rgba(0,229,204,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0"
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nytt ärende
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExport}
+                        disabled={filtered.length === 0}
+                        className="border-[#ffffff10] bg-[#122220]/50 hover:bg-primary/10 hover:border-primary/20 hover:text-primary text-muted-foreground shrink-0"
+                    >
+                        <Download className="h-4 w-4 mr-2" />
+                        Exportera CSV
+                    </Button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -130,8 +144,8 @@ export default function ClaimsListPage() {
                             key={s}
                             onClick={() => setStatusFilter(s)}
                             className={`text-xs px-3 py-1.5 rounded-full border transition-all ${statusFilter === s
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-[#ffffff10] text-muted-foreground hover:border-[#ffffff20]'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-[#ffffff10] text-muted-foreground hover:border-[#ffffff20]'
                                 }`}
                         >
                             {s === 'all' ? 'Alla' : s === 'active' ? 'Aktiva' : s === 'escalated' ? 'Eskalerade' : 'Betalda'}
@@ -182,14 +196,32 @@ export default function ClaimsListPage() {
                         ))}
                         {filtered.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                                    Inga ärenden hittades.
+                                <TableCell colSpan={6} className="text-center py-12">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <p className="text-muted-foreground">Inga ärenden hittades.</p>
+                                        <Button
+                                            onClick={() => setShowNewClaim(true)}
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-primary hover:bg-primary/10"
+                                        >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Skapa ditt första ärende
+                                        </Button>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
             </GlassCard>
+
+            {/* New Claim Modal */}
+            <NewClaimModal
+                open={showNewClaim}
+                onClose={() => setShowNewClaim(false)}
+                onCreated={loadClaims}
+            />
         </div>
     );
 }

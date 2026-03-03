@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -13,7 +13,8 @@ const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/claims', label: 'Ärenden', icon: ReceiptText },
     { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/dashboard/emails', label: 'E-post', icon: Mail },
+    { href: '/dashboard/drafts', label: 'E-post / SMS', icon: Mail },
+    { href: '/dashboard/flow-builder', label: 'Agentflöde', icon: Workflow },
     { href: '/dashboard/settings', label: 'Inställningar', icon: Settings },
 ];
 
@@ -52,12 +53,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             const claimsCount = data.claimsCount ?? 0;
             setPendingEmailsCount(pending);
 
-            if (pending > 0 && !pathname.includes('/dashboard/emails') && !hasNotifiedEmails) {
+            if (pending > 0 && !pathname.includes('/dashboard/drafts') && !hasNotifiedEmails) {
                 toast.info(`${pending} mejl väntar på godkännande`, {
                     description: 'Gå till E-post för att granska.',
                     action: {
                         label: 'Öppna',
-                        onClick: () => router.push('/dashboard/emails'),
+                        onClick: () => router.push('/dashboard/drafts'),
                     },
                 });
                 setHasNotifiedEmails(true);
@@ -151,11 +152,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <div ref={notifRef} className="relative">
                             <button
                                 onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }}
-                                className="relative p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                                className="relative p-3 rounded-xl text-muted-foreground/80 hover:text-foreground hover:bg-white/5 transition-all duration-200"
                             >
-                                <Bell className="h-5 w-5" />
+                                <Bell className="h-5 w-5 stroke-[1.5]" />
                                 {(pendingEmailsCount > 0 || notifications.length > 0) && (
-                                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-primary text-[10px] font-semibold text-background flex items-center justify-center px-1 shadow-[0_0_8px_rgba(0,229,204,0.5)]">
+                                    <span className="absolute top-2 right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary text-[9px] font-bold text-background shadow-[0_0_8px_rgba(0,229,204,0.4)] px-1">
                                         {pendingEmailsCount > 0 ? (pendingEmailsCount > 9 ? '9+' : pendingEmailsCount) : notifications.length > 9 ? '9+' : notifications.length}
                                     </span>
                                 )}
@@ -245,7 +246,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </header>
 
                 {/* Page Content */}
-                <div className="flex-1 p-6 lg:p-10 max-w-7xl">
+                <div className={`flex-1 p-6 lg:p-10 ${pathname.includes('flow-builder') ? '' : 'max-w-7xl'}`}>
                     {children}
                 </div>
             </main>

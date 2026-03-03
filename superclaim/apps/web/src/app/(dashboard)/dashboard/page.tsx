@@ -19,12 +19,26 @@ interface Claim {
     status: 'active' | 'paid' | 'escalated' | 'cancelled';
 }
 
+interface KpiTrends {
+    outstanding: number;   // % MoM
+    activeClaims: number;  // absolut diff
+    collected: number;     // % MoM
+}
+
+interface KpiSparklines {
+    outstanding: number[];
+    activeClaims: number[];
+    collected: number[];
+}
+
 interface DashboardData {
     claims: Claim[];
     kpis: {
         totalOutstanding: number;
         activeClaims: number;
         totalCollected: number;
+        trends?: KpiTrends;
+        sparklines?: KpiSparklines;
     };
     source: string;
 }
@@ -72,6 +86,7 @@ export default function DashboardPage() {
 
             {/* KPI Cards with Sparklines */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Totalt utestående */}
                 <GlassCard glowColor="cyan" className="p-6">
                     <div className="flex items-start justify-between">
                         <div>
@@ -79,16 +94,24 @@ export default function DashboardPage() {
                             <p className="text-3xl font-semibold font-serif italic text-white flex items-baseline gap-2">
                                 {data.kpis?.totalOutstanding?.toLocaleString('sv-SE') || 0} <span className="text-lg text-muted-foreground font-sans not-italic">SEK</span>
                             </p>
-                            <div className="flex items-center gap-1 mt-2">
-                                <TrendingDown className="h-3 w-3 text-primary" />
-                                <span className="text-xs text-primary font-medium">−12%</span>
-                                <span className="text-xs text-muted-foreground">vs förra mån</span>
-                            </div>
+                            {data.kpis?.trends !== undefined && (
+                                <div className="flex items-center gap-1 mt-2">
+                                    {data.kpis.trends.outstanding <= 0
+                                        ? <TrendingDown className="h-3 w-3 text-primary" />
+                                        : <TrendingUp className="h-3 w-3 text-destructive" />
+                                    }
+                                    <span className={`text-xs font-medium ${data.kpis.trends.outstanding <= 0 ? 'text-primary' : 'text-destructive'}`}>
+                                        {data.kpis.trends.outstanding > 0 ? '+' : ''}{data.kpis.trends.outstanding}%
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">vs förra mån</span>
+                                </div>
+                            )}
                         </div>
-                        <Sparkline data={[320, 280, 310, 295, 260, 248, 248]} color="#00e5cc" />
+                        <Sparkline data={data.kpis?.sparklines?.outstanding ?? [0, 0, 0, 0, 0, 0, 0]} color="#00e5cc" />
                     </div>
                 </GlassCard>
 
+                {/* Under indrivning */}
                 <GlassCard glowColor="cyan" className="p-6">
                     <div className="flex items-start justify-between">
                         <div>
@@ -96,16 +119,24 @@ export default function DashboardPage() {
                             <p className="text-3xl font-semibold font-serif italic text-white">
                                 {data.kpis?.activeClaims || 0} <span className="text-lg text-muted-foreground font-sans not-italic">ärenden</span>
                             </p>
-                            <div className="flex items-center gap-1 mt-2">
-                                <TrendingUp className="h-3 w-3 text-amber-400" />
-                                <span className="text-xs text-amber-400 font-medium">+3</span>
-                                <span className="text-xs text-muted-foreground">nya denna vecka</span>
-                            </div>
+                            {data.kpis?.trends !== undefined && (
+                                <div className="flex items-center gap-1 mt-2">
+                                    {data.kpis.trends.activeClaims >= 0
+                                        ? <TrendingUp className="h-3 w-3 text-amber-400" />
+                                        : <TrendingDown className="h-3 w-3 text-primary" />
+                                    }
+                                    <span className={`text-xs font-medium ${data.kpis.trends.activeClaims >= 0 ? 'text-amber-400' : 'text-primary'}`}>
+                                        {data.kpis.trends.activeClaims > 0 ? '+' : ''}{data.kpis.trends.activeClaims}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">nya denna månad</span>
+                                </div>
+                            )}
                         </div>
-                        <Sparkline data={[5, 7, 8, 9, 11, 10, 12]} color="#00e5cc" />
+                        <Sparkline data={data.kpis?.sparklines?.activeClaims ?? [0, 0, 0, 0, 0, 0, 0]} color="#00e5cc" />
                     </div>
                 </GlassCard>
 
+                {/* Indriven summa */}
                 <GlassCard glowColor="gold" className="p-6">
                     <div className="flex items-start justify-between">
                         <div>
@@ -113,13 +144,20 @@ export default function DashboardPage() {
                             <p className="text-3xl font-semibold font-serif italic text-[#f5c842] flex items-baseline gap-2">
                                 {data.kpis?.totalCollected?.toLocaleString('sv-SE') || 0} <span className="text-lg text-muted-foreground font-sans not-italic">SEK</span>
                             </p>
-                            <div className="flex items-center gap-1 mt-2">
-                                <TrendingUp className="h-3 w-3 text-[#f5c842]" />
-                                <span className="text-xs text-[#f5c842] font-medium">+28%</span>
-                                <span className="text-xs text-muted-foreground">vs förra mån</span>
-                            </div>
+                            {data.kpis?.trends !== undefined && (
+                                <div className="flex items-center gap-1 mt-2">
+                                    {data.kpis.trends.collected >= 0
+                                        ? <TrendingUp className="h-3 w-3 text-[#f5c842]" />
+                                        : <TrendingDown className="h-3 w-3 text-destructive" />
+                                    }
+                                    <span className={`text-xs font-medium ${data.kpis.trends.collected >= 0 ? 'text-[#f5c842]' : 'text-destructive'}`}>
+                                        {data.kpis.trends.collected > 0 ? '+' : ''}{data.kpis.trends.collected}%
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">vs förra mån</span>
+                                </div>
+                            )}
                         </div>
-                        <Sparkline data={[12, 18, 22, 28, 32, 38, 45]} color="#f5c842" />
+                        <Sparkline data={data.kpis?.sparklines?.collected ?? [0, 0, 0, 0, 0, 0, 0]} color="#f5c842" />
                     </div>
                 </GlassCard>
             </div>

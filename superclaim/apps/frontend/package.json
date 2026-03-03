@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.43.0",
+    "@sentry/nextjs": "^10.42.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.49.1",
     "agentmail": "^0.3.7",

@@ -62,7 +62,7 @@ export function FirstClaimStep({ companyName, tone, selectedInvoices, onActivate
                     </p>
                 </div>
                 <Button
-                    onClick={() => window.location.href = '/dashboard'}
+                    onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.superclaim.io'}/dashboard`}
                     className="h-10 px-8 bg-gradient-to-r from-primary to-[#00b8a3] text-background font-semibold shadow-[0_0_24px_rgba(0,229,204,0.3)] hover:scale-[1.02] transition-all"
                 >
                     Gå till Dashboard <ArrowRight className="ml-2 h-4 w-4" />

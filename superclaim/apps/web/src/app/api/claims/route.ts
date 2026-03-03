@@ -183,8 +183,12 @@ export async function POST(request: Request) {
             }
         }
 
-        const nextAction = new Date()
-        nextAction.setDate(nextAction.getDate() + 3)
+        // If already overdue → act immediately, otherwise wait until due_date + 1 day
+        const dueDate = new Date(due_date)
+        const now = new Date()
+        const nextAction = dueDate < now
+            ? now  // already overdue — trigger agent on next run
+            : new Date(dueDate.getTime() + 24 * 60 * 60 * 1000) // due_date + 1 day
 
         const { data: claim, error } = await admin
             .from('claims')

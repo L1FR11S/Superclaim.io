@@ -470,13 +470,13 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
             return result
         }
 
-        // Get claims that need action
+        // Get claims that need action (null next_action_at = new claim, never actioned)
         const now = new Date().toISOString()
         const { data: claims } = await supabaseAdmin
             .from('claims').select('*')
             .eq('org_id', orgId).eq('status', 'active').eq('paused', false)
-            .lte('next_action_at', now)
-            .order('next_action_at', { ascending: true })
+            .or(`next_action_at.is.null,next_action_at.lte.${now}`)
+            .order('next_action_at', { ascending: true, nullsFirst: true })
 
         if (!claims || claims.length === 0) {
             await finalizeRun(run?.id, result, 'completed')

@@ -4,11 +4,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function proxy(request: NextRequest) {
     const path = request.nextUrl.pathname
 
-    // Only API and static files are truly public on app.superclaim.io
+    // Only API, static files and auth routes are public on app.superclaim.io
     const isApiRoute = path.startsWith('/api/')
     const isStaticFile = path.startsWith('/_next/') || path.includes('.')
+    const isAuthRoute = path.startsWith('/auth/')
 
-    if (isApiRoute || isStaticFile) {
+    if (isApiRoute || isStaticFile || isAuthRoute) {
         return NextResponse.next()
     }
 

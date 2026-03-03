@@ -179,8 +179,19 @@ function LoginForm() {
             } else {
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
-                toast.success('Inloggad!');
-                window.location.href = redirectTo;
+                // Get session tokens and pass them to app.superclaim.io
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+                    const setSessionUrl = new URL(`${appUrl}/auth/set-session`);
+                    setSessionUrl.searchParams.set('access_token', session.access_token);
+                    setSessionUrl.searchParams.set('refresh_token', session.refresh_token);
+                    setSessionUrl.searchParams.set('next', '/dashboard');
+                    toast.success('Inloggad!');
+                    window.location.href = setSessionUrl.toString();
+                } else {
+                    toast.error('Kunde inte hämta session');
+                }
             }
         } catch (err: any) {
             toast.error(err.message || 'Något gick fel');

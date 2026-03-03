@@ -1,13 +1,9 @@
 import { createBrowserClient } from '@supabase/ssr'
 
+// No cookie domain — session is passed via URL token to app.superclaim.io
 export function createClient() {
-    const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN // ".superclaim.io" i produktion
-
     return createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        cookieDomain
-            ? { cookieOptions: { domain: cookieDomain } }
-            : undefined
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 }

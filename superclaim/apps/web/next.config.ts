@@ -9,28 +9,13 @@ const nextConfig: NextConfig = {
 }
 
 export default withSentryConfig(nextConfig, {
-  // Sentry organisationsslug och projektnamn
-  org: 'superclaim',
+  org: 'superclaimio',
   project: 'superclaim-app',
-
-  // Tysta Sentry-loggar under bygget
   silent: !process.env.CI,
-
-  // Ladda upp source maps till Sentry för bättre stacktraces
   widenClientFileUpload: true,
-
-  // Source map-uppladdning
+  automaticVercelMonitors: true,
   sourcemaps: {
     deleteSourcemapsAfterUpload: true,
-  },
-
-  webpack: {
-    // Ta bort debug-loggar från produktionsbunten
-    treeshake: {
-      removeDebugLogging: true,
-    },
-    // Automatisk instrumentering av Vercel Cron Monitors
-    automaticVercelMonitors: true,
   },
 })
 

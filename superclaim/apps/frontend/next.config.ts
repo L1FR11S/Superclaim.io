@@ -19,21 +19,12 @@ const nextConfig: NextConfig = {
 }
 
 export default withSentryConfig(nextConfig, {
-  org: 'superclaim',
+  org: 'superclaimio',
   project: 'superclaim-frontend',
-
   silent: !process.env.CI,
-
   widenClientFileUpload: true,
-
+  automaticVercelMonitors: true,
   sourcemaps: {
     deleteSourcemapsAfterUpload: true,
-  },
-
-  webpack: {
-    treeshake: {
-      removeDebugLogging: true,
-    },
-    automaticVercelMonitors: true,
   },
 })

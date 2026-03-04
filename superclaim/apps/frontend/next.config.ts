@@ -6,6 +6,16 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [],
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.superclaim.io' }],
+        destination: 'https://superclaim.io/:path*',
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default withSentryConfig(nextConfig, {

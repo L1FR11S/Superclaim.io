@@ -27,14 +27,14 @@ export async function POST(req: NextRequest) {
         org_id: org.id,
         debtor_name: 'Test Gäldenär AB',
         debtor_email: 'test@example.com',
-        debtor_phone: null,
+        debtor_phone: '+46708229236',
         invoice_number: `TEST-${Date.now()}`,
         amount: 12345,
         currency: 'SEK',
         due_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
         status: 'active',
         current_step: 0,
-        next_action_at: new Date().toISOString(), // trigger omedelbart
+        next_action_at: new Date().toISOString(),
         metadata: { is_test: true },
     }).select().single()
 

@@ -5,7 +5,7 @@ import { createPod, createAgentInbox } from '@/lib/email/agentmail'
 
 /**
  * PUT /api/onboarding/channels
- * Auto-create AgentMail inbox during onboarding step 2.
+ * Create AgentMail pod + inbox with customer-chosen username and display name.
  */
 export async function PUT(request: Request) {
     try {
@@ -24,7 +24,7 @@ export async function PUT(request: Request) {
         if (!org) return NextResponse.json({ error: 'Organisation saknas – slutför steg 1 först' }, { status: 400 })
 
         const body = await request.json()
-        const { preferred_erp } = body
+        const { preferred_erp, inbox_username, inbox_display_name } = body
 
         // Check if inbox already exists
         const { data: existingSettings } = await admin
@@ -36,30 +36,26 @@ export async function PUT(request: Request) {
         let inboxId = existingSettings?.agentmail_inbox_id
         let podId = existingSettings?.agentmail_pod_id
 
-        // Auto-create AgentMail inbox if not exists
+        // Create AgentMail pod + inbox with customer's chosen identity
         if (!inboxId) {
-            try {
-                // Derive a clean inbox ID from the company name
-                // e.g. "Karlsson Bygg AB" → "karlssonbygg"
-                const baseId = org.name
-                    .toLowerCase()
-                    .replace(/\s+/g, '')         // remove spaces
-                    .replace(/[^a-z0-9]/g, '')   // only alphanumeric
-                    .slice(0, 30)                 // max 30 chars
+            // Sanitize username from form (or fall back to company name)
+            const username = inbox_username
+                ? inbox_username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30)
+                : org.name.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '').slice(0, 30)
 
-                const pod = await createPod(org.name)
-                podId = (pod as any).podId || (pod as any).pod_id
+            const displayName = inbox_display_name || org.name
 
-                const inbox = await createAgentInbox({
-                    inboxId: baseId || undefined,
-                    displayName: `${org.name} Inkasso`,
-                    podId,
-                })
-                inboxId = (inbox as any).inboxId || (inbox as any).inbox_id
-            } catch (emailErr: any) {
-                console.error('[AgentMail Error]', emailErr)
-                // Don't block onboarding if email setup fails
-            }
+            // Create the customer's dedicated pod (clientId = org.id for matching)
+            const pod = await createPod(org.name, org.id)
+            podId = (pod as any).podId
+
+            // Create inbox inside the pod — throws if username is taken
+            const inbox = await createAgentInbox({
+                username,
+                displayName,
+                podId,
+            })
+            inboxId = (inbox as any).inboxId
         }
 
         await admin

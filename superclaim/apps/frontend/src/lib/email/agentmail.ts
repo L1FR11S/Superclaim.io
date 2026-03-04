@@ -1,4 +1,5 @@
 import { AgentMailClient } from 'agentmail'
+import type * as AgentMail from 'agentmail'
 
 let _client: AgentMailClient | null = null
 function getClient() {
@@ -12,8 +13,8 @@ function getClient() {
  * Create a Pod (tenant container) for a customer organization.
  * Each org gets one pod that groups all their inboxes.
  */
-export async function createPod(name: string) {
-    return getClient().pods.create({ name })
+export async function createPod(name: string, clientId?: string) {
+    return getClient().pods.create({ name, clientId })
 }
 
 /**
@@ -40,22 +41,26 @@ export async function deletePod(podId: string) {
 // ─── Inboxes ─────────────────────────────────────────
 
 /**
- * Create a new AgentMail inbox, optionally within a Pod and/or custom domain.
- * Returns the inbox_id which is the email address.
+ * Create a new AgentMail inbox inside a Pod (preferred) or standalone.
+ * - Uses pods.inboxes.create(podId, {...}) to associate with the customer's pod
+ * - 'username' sets the email prefix (e.g. "karlssonbygg" → karlssonbygg@agentmail.to)
  */
 export async function createAgentInbox(opts?: {
-    inboxId?: string
+    username?: string       // email prefix
     displayName?: string
     domain?: string
-    podId?: string
+    podId?: string          // if provided, inbox is created inside this pod
 }) {
-    const params: any = {}
-    if (opts?.inboxId) params.inboxId = opts.inboxId
+    const params: { username?: string; displayName?: string; domain?: string } = {}
+    if (opts?.username) params.username = opts.username
     if (opts?.displayName) params.displayName = opts.displayName
     if (opts?.domain) params.domain = opts.domain
-    if (opts?.podId) params.podId = opts.podId
-    const inbox = await getClient().inboxes.create(Object.keys(params).length > 0 ? params : undefined)
-    return inbox
+
+    if (opts?.podId) {
+        return getClient().pods.inboxes.create(opts.podId, params)
+    } else {
+        return getClient().inboxes.create(params)
+    }
 }
 
 /**

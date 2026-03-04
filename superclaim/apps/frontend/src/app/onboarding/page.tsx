@@ -31,6 +31,8 @@ export default function OnboardingPage() {
     const [preferredErp, setPreferredErp] = useState<string | null>(null)
     const [selectedInvoices, setSelectedInvoices] = useState<string[]>([])
     const [autoSync, setAutoSync] = useState(true)
+    const [inboxUsername, setInboxUsername] = useState('')
+    const [inboxDisplayName, setInboxDisplayName] = useState('')
 
     // Step 3 state
     const [activated, setActivated] = useState(false)
@@ -64,7 +66,12 @@ export default function OnboardingPage() {
         )
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (user?.user_metadata?.company_name) {
-                setCompanyName(user.user_metadata.company_name)
+                const name = user.user_metadata.company_name
+                setCompanyName(name)
+                // Set default inbox username from company name
+                const defaultUsername = name.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '').slice(0, 30)
+                setInboxUsername(defaultUsername)
+                setInboxDisplayName(name)
             }
         })
     }, [])
@@ -91,20 +98,29 @@ export default function OnboardingPage() {
 
     // Step 2 → Save channels
     const handleStep2Next = async () => {
+        if (!inboxUsername) { toast.error('Ange ett användarnamn för e-postadressen'); return }
         setLoading(true)
         try {
             const res = await fetch('/api/onboarding/channels', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ preferred_erp: preferredErp }),
+                body: JSON.stringify({
+                    preferred_erp: preferredErp,
+                    inbox_username: inboxUsername,
+                    inbox_display_name: inboxDisplayName || companyName,
+                }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error)
             if (data.inbox_id) setInboxId(data.inbox_id)
-            toast.success('Kanaler konfigurerade!')
+            toast.success('E-postadress konfigurerad!')
             setCurrentStep(3)
         } catch (err: any) {
-            toast.error(err.message || 'Kunde inte konfigurera kanaler')
+            if (err.message?.toLowerCase().includes('already') || err.message?.toLowerCase().includes('taken') || err.message?.toLowerCase().includes('exist')) {
+                toast.error('Användarnamnet är redan taget — välj ett annat')
+            } else {
+                toast.error(err.message || 'Kunde inte konfigurera kanaler')
+            }
         } finally {
             setLoading(false)
         }
@@ -229,6 +245,8 @@ export default function OnboardingPage() {
                             preferredErp={preferredErp} setPreferredErp={setPreferredErp}
                             selectedInvoices={selectedInvoices} setSelectedInvoices={setSelectedInvoices}
                             autoSync={autoSync} setAutoSync={setAutoSync}
+                            inboxUsername={inboxUsername} setInboxUsername={setInboxUsername}
+                            inboxDisplayName={inboxDisplayName} setInboxDisplayName={setInboxDisplayName}
                             onNext={handleStep2Next} loading={loading}
                         />
                     )}

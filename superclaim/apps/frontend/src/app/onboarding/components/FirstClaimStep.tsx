@@ -2,6 +2,8 @@
 
 import { Button } from '@/components/ui/button'
 import { Loader2, Mail, Clock, AlertTriangle, CheckCircle2, ArrowRight, FileText, Sparkles } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
+import { toast } from 'sonner'
 
 // Same mock data as ChannelsStep
 const mockInvoices = [
@@ -62,7 +64,25 @@ export function FirstClaimStep({ companyName, tone, selectedInvoices, onActivate
                     </p>
                 </div>
                 <Button
-                    onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.superclaim.io'}/dashboard`}
+                    onClick={async () => {
+                        try {
+                            const supabase = createClient()
+                            const { data: { session } } = await supabase.auth.getSession()
+                            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.superclaim.io'
+                            if (session) {
+                                const url = new URL(`${appUrl}/auth/set-session`)
+                                url.searchParams.set('access_token', session.access_token)
+                                url.searchParams.set('refresh_token', session.refresh_token)
+                                url.searchParams.set('next', '/dashboard')
+                                window.location.href = url.toString()
+                            } else {
+                                toast.error('Session saknas — logga in igen')
+                                window.location.href = '/login'
+                            }
+                        } catch {
+                            window.location.href = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.superclaim.io'}/dashboard`
+                        }
+                    }}
                     className="h-10 px-8 bg-gradient-to-r from-primary to-[#00b8a3] text-background font-semibold shadow-[0_0_24px_rgba(0,229,204,0.3)] hover:scale-[1.02] transition-all"
                 >
                     Gå till Dashboard <ArrowRight className="ml-2 h-4 w-4" />

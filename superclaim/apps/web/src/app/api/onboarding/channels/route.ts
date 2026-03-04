@@ -48,15 +48,15 @@ export async function PUT(request: Request) {
                     .replace(/[^a-z0-9]/g, '')
                     .slice(0, 30)
 
-                const pod = await createPod(org.name)
-                podId = (pod as any).podId || (pod as any).pod_id
+                const pod = await createPod(org.name, org.id)  // clientId = org.id
+                podId = (pod as any).podId
 
                 const inbox = await createAgentInbox({
-                    inboxId: baseId || undefined,
-                    displayName: `${org.name} Inkasso`,
+                    username: baseId || undefined,
+                    displayName: org.name,  // just the company name, e.g. "Superclaim AB"
                     podId,
                 })
-                inboxId = (inbox as any).inboxId || (inbox as any).inbox_id
+                inboxId = (inbox as any).inboxId
             } catch (emailErr: any) {
                 console.error('[AgentMail Error]', emailErr)
             }

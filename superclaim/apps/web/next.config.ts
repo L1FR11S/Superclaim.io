@@ -24,10 +24,13 @@ export default withSentryConfig(nextConfig, {
     deleteSourcemapsAfterUpload: true,
   },
 
-  // Minska storleken på Sentry-bundeln
-  disableLogger: true,
-
-  // Automatisk instrumentering av Vercel Cron Monitors
-  automaticVercelMonitors: true,
+  webpack: {
+    // Ta bort debug-loggar från produktionsbunten
+    treeshake: {
+      removeDebugLogging: true,
+    },
+    // Automatisk instrumentering av Vercel Cron Monitors
+    automaticVercelMonitors: true,
+  },
 })
 

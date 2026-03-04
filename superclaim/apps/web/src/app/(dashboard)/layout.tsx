@@ -8,6 +8,7 @@ import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, 
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { createBrowserClient } from '@supabase/ssr';
 
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -41,8 +42,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const [pendingEmailsCount, setPendingEmailsCount] = useState(0);
     const [lastSeenCounts, setLastSeenCounts] = useState({ claims: 0, emails: 0 });
     const [hasNotifiedEmails, setHasNotifiedEmails] = useState(false);
+    const [userEmail, setUserEmail] = useState<string>('');
+    const [orgName, setOrgName] = useState<string>('');
     const notifRef = useRef<HTMLDivElement>(null);
     const userRef = useRef<HTMLDivElement>(null);
+
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
     const fetchNotifications = async () => {
         try {
@@ -84,6 +92,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const interval = setInterval(fetchNotifications, 45000);
         return () => clearInterval(interval);
     }, [pathname]);
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user?.email) setUserEmail(user.email)
+        })
+        fetch('/api/settings').then(r => r.json()).then(d => {
+            if (d?.org_name) setOrgName(d.org_name)
+        }).catch(() => { })
+        // Fallback: get org name from organizations table via user
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+            if (!user?.email) return
+            const { data } = await supabase.from('organizations').select('name').eq('email', user.email).single()
+            if (data?.name) setOrgName(data.name)
+        })
+    }, []);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -135,7 +158,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
 
                 <div className="p-3 border-t border-[#ffffff08]">
-                    <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all w-full">
+                    <button
+                        onClick={async () => {
+                            await supabase.auth.signOut()
+                            window.location.href = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://superclaim.io'}/`
+                        }}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all w-full"
+                    >
                         <LogOut className="h-5 w-5" />
                         Logga ut
                     </button>
@@ -214,8 +243,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             {showUserMenu && (
                                 <div className="absolute right-0 top-12 w-56 rounded-xl border border-[#ffffff08] bg-[#0d1a18]/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
                                     <div className="p-4 border-b border-[#ffffff08]">
-                                        <p className="text-sm font-medium">Demo Företag AB</p>
-                                        <p className="text-xs text-muted-foreground">demo@foretag.se</p>
+                                        <p className="text-sm font-medium">{orgName || '—'}</p>
+                                        <p className="text-xs text-muted-foreground">{userEmail}</p>
                                     </div>
                                     <div className="py-1">
                                         {[
@@ -234,7 +263,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         ))}
                                     </div>
                                     <div className="border-t border-[#ffffff08] py-1">
-                                        <button className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors w-full">
+                                        <button
+                                            onClick={async () => {
+                                                await supabase.auth.signOut()
+                                                window.location.href = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://superclaim.io'}/`
+                                            }}
+                                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors w-full"
+                                        >
                                             <LogOut className="h-4 w-4" />
                                             Logga ut
                                         </button>

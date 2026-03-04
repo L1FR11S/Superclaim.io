@@ -149,6 +149,8 @@ function LoginForm() {
     const redirectTo = searchParams.get('redirectTo') || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`;
 
     const [isRegister, setIsRegister] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [resetSent, setResetSent] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
@@ -200,6 +202,22 @@ function LoginForm() {
         }
     };
 
+    const handleForgotPassword = async () => {
+        if (!email) { toast.error('Ange din e-postadress ovan'); return; }
+        setLoading(true);
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/auth/reset-password`,
+            });
+            if (error) throw error;
+            setResetSent(true);
+        } catch (err: any) {
+            toast.error(err.message || 'Kunde inte skicka återställningslänk');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleGoogleLogin = async () => {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -223,12 +241,13 @@ function LoginForm() {
                 {/* Heading */}
                 <div className="mb-6">
                     <h1 className="text-xl font-semibold tracking-tight">
-                        {isRegister ? 'Skapa ditt konto' : 'Välkommen tillbaka'}
+                        {showForgotPassword ? 'Återställ lösenord' : isRegister ? 'Skapa ditt konto' : 'Välkommen tillbaka'}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {isRegister
-                            ? 'Kom igång på under 2 minuter'
-                            : 'Logga in för att hantera dina ärenden'}
+                        {showForgotPassword
+                            ? resetSent ? 'Kolla din e-post! 📬' : 'Vi skickar en länk till din e-post'
+                            : isRegister ? 'Kom igång på under 2 minuter'
+                                : 'Logga in för att hantera dina ärenden'}
                     </p>
                 </div>
 
@@ -290,35 +309,56 @@ function LoginForm() {
                         </div>
                     </div>
 
-                    <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                            <Label className="text-xs text-muted-foreground">Lösenord</Label>
-                            {!isRegister && (
-                                <button className="text-xs text-primary/50 hover:text-primary transition-colors">
-                                    Glömt lösenord?
+                    {!showForgotPassword && (
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <Label className="text-xs text-muted-foreground">Lösenord</Label>
+                                {!isRegister && (
+                                    <button
+                                        onClick={() => setShowForgotPassword(true)}
+                                        className="text-xs text-primary/50 hover:text-primary transition-colors"
+                                    >
+                                        Glömt lösenord?
+                                    </button>
+                                )}
+                            </div>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/30" />
+                                <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleEmailAuth()}
+                                    className="pl-9 pr-9 h-10 bg-[#0d1a18] border-[#ffffff10] focus:border-primary/40 focus:shadow-[0_0_12px_rgba(0,229,204,0.1)] transition-all text-sm" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">
+                                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                                 </button>
-                            )}
+                            </div>
                         </div>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/30" />
-                            <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleEmailAuth()}
-                                className="pl-9 pr-9 h-10 bg-[#0d1a18] border-[#ffffff10] focus:border-primary/40 focus:shadow-[0_0_12px_rgba(0,229,204,0.1)] transition-all text-sm" />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">
-                                {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    )}
+
+                    {resetSent ? (
+                        <div className="text-center py-2 space-y-3">
+                            <p className="text-sm text-muted-foreground">Återställningslänk skickad till <span className="text-foreground font-medium">{email}</span></p>
+                            <button onClick={() => { setShowForgotPassword(false); setResetSent(false); }} className="text-xs text-primary hover:text-primary/80 transition-colors">
+                                ← Tillbaka till inloggning
                             </button>
                         </div>
-                    </div>
-
-                    <Button onClick={handleEmailAuth} disabled={loading}
-                        className="w-full h-10 bg-gradient-to-r from-primary to-[#00b8a3] text-background font-semibold text-sm shadow-[0_0_20px_rgba(0,229,204,0.2)] hover:shadow-[0_0_28px_rgba(0,229,204,0.35)] hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 disabled:hover:scale-100 mt-1">
-                        {loading
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <>{isRegister ? 'Skapa konto' : 'Logga in'} <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
-                        }
-                    </Button>
+                    ) : showForgotPassword ? (
+                        <div className="space-y-2">
+                            <Button onClick={handleForgotPassword} disabled={loading}
+                                className="w-full h-10 bg-gradient-to-r from-primary to-[#00b8a3] text-background font-semibold text-sm shadow-[0_0_20px_rgba(0,229,204,0.2)] hover:shadow-[0_0_28px_rgba(0,229,204,0.35)] transition-all disabled:opacity-50 mt-1">
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Skicka återställningslänk <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>}
+                            </Button>
+                            <button onClick={() => setShowForgotPassword(false)} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-1">
+                                ← Tillbaka till inloggning
+                            </button>
+                        </div>
+                    ) : (
+                        <Button onClick={handleEmailAuth} disabled={loading}
+                            className="w-full h-10 bg-gradient-to-r from-primary to-[#00b8a3] text-background font-semibold text-sm shadow-[0_0_20px_rgba(0,229,204,0.2)] hover:shadow-[0_0_28px_rgba(0,229,204,0.35)] hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 disabled:hover:scale-100 mt-1">
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{isRegister ? 'Skapa konto' : 'Logga in'} <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>}
+                        </Button>
+                    )}
                 </div>
 
                 {/* Toggle */}

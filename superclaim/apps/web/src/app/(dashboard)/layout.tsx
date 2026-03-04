@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow, FlaskConical } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ const navItems = [
     { href: '/dashboard/drafts', label: 'E-post / SMS', icon: Mail },
     { href: '/dashboard/flow-builder', label: 'Agentflöde', icon: Workflow },
     { href: '/dashboard/settings', label: 'Inställningar', icon: Settings },
+    { href: '/dashboard/test', label: 'Test Panel', icon: FlaskConical },
 ];
 
 interface Notification {

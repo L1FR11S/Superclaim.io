@@ -35,7 +35,6 @@ export async function POST(req: NextRequest) {
         status: 'active',
         current_step: 0,
         next_action_at: new Date().toISOString(),
-        metadata: { is_test: true },
     }).select().single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

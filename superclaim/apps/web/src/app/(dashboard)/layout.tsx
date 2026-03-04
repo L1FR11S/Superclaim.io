@@ -122,6 +122,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return pathname.startsWith(href);
     };
 
+    const getGreeting = () => {
+        const h = new Date().getHours()
+        if (h >= 5 && h < 12) return 'God morgon ☀️'
+        if (h >= 12 && h < 17) return 'God dag 👋'
+        if (h >= 17 && h < 22) return 'God kväll 🌆'
+        return 'God natt 🌙'
+    };
+
     return (
         <div className="flex min-h-screen bg-background text-foreground">
             {/* Sidebar */}
@@ -175,7 +183,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <main className="flex-1 md:pl-64 flex flex-col">
                 {/* Topbar */}
                 <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#ffffff08] bg-background/60 px-6 backdrop-blur-xl">
-                    <h2 className="text-lg font-medium text-muted-foreground">God kväll 👋</h2>
+                    <h2 className="text-lg font-medium text-muted-foreground">{getGreeting()}</h2>
                     <div className="flex items-center gap-2">
                         {/* Notifications */}
                         <div ref={notifRef} className="relative">

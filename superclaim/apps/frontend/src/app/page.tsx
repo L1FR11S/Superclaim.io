@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/shared/GlassCard';
-import { ArrowRight, BrainCircuit, ShieldCheck, Zap, TrendingUp, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowRight, BrainCircuit, ShieldCheck, Zap, TrendingUp, Clock, Loader2, HeartHandshake } from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -34,9 +34,9 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section - Niora Style */}
+      {/* Hero Section */}
       <main className="flex-1 relative z-10 flex flex-col pt-24 lg:pt-36 px-4">
-        {/* Gradients like Niora bg */}
+        {/* Gradients */}
         <div className="absolute top-0 right-0 w-[800px] h-[600px] bg-primary/10 blur-[150px] rounded-full pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
 
         <div className="max-w-[85rem] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
@@ -46,27 +46,27 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-3 text-sm font-medium mb-2 text-muted-foreground bg-white/5 border border-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
               <span className="bg-white/10 text-white px-2 py-0.5 rounded-md text-xs font-semibold">Nyhet</span>
               <span className="flex items-center gap-1.5 text-white/90">
-                <Zap className="h-4 w-4 text-primary" />
-                Helt autonom indrivning
+                <HeartHandshake className="h-4 w-4 text-primary" />
+                Optimera kassaflödet och rädda kundrelationen
               </span>
             </div>
 
             <h1 className="font-serif italic text-5xl lg:text-[4.7rem] tracking-tight leading-[1.03]">
-              <span className="block text-white">Den sista</span>
-              <span className="block text-[#e8eada]">inkassotjänsten</span>
+              <span className="block text-white"> Minska andelen förfallna fakturor.</span>
+              <span className="block text-[#e8eada]">Och onödig användning av</span>
               <span className="block text-[#e8eada]">
-                du någonsin <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#00b8a3]">behöver.</span>
+                dyra <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#00b8a3]">inkassotjänster.</span>
               </span>
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed pr-8 font-light">
-              Superclaim automatiserar faktura-till-kassa och maximerar ditt inflöde av pengar, så att du kan växa med tydlighet och kontroll.
+              Superclaim fyller gapet mellan förfallen faktura och traditionell inkasso. Vi automatiserar dina påminnelser med AI för att säkra kassaflödet, samtidigt som vi värnar om er kundrelation.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
               <p className="text-sm md:text-base font-serif italic text-white/50 w-full mb-2 sm:mb-0">
-                Låga avgifter. Inga månadsabonnemang.<br />
-                Bara resultat i kassan.
+                Låga avgifter. Ingen månadskostnad.<br />
+                Bara en smidigare väg till kassan.
               </p>
             </div>
 
@@ -106,7 +106,7 @@ export default function LandingPage() {
                 {/* Screenshot */}
                 <div className="relative w-full aspect-[16/10]">
                   <Image
-                    src="/Superclaim_dashboard.png"
+                    src="/Superclaim_dashboard.png" // Vi kan behöva uppdatera denna bild så den inte visar "inkasso-termer"
                     alt="Superclaim Dashboard"
                     fill
                     className="object-cover object-top"
@@ -117,11 +117,11 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Floating widget — pinned bottom-left, no rotation */}
+              {/* Floating widget — pinned bottom-left */}
               <div className="absolute -bottom-6 -left-6 w-[280px] rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.7)] border border-white/10 bg-[#0a1412]/95 backdrop-blur-xl p-5 z-30">
                 <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
                   <div>
-                    <span className="text-sm font-semibold text-white block mb-0.5">Aktiv indrivning</span>
+                    <span className="text-sm font-semibold text-white block mb-0.5">Aktiv fakturaoptimering</span>
                     <span className="text-xs text-muted-foreground">3 pågående ärenden</span>
                   </div>
                   <span className="text-xs text-[#00b8a3] bg-[#00b8a3]/10 px-2 py-1 rounded-full font-medium flex items-center gap-1 border border-[#00b8a3]/20">
@@ -133,7 +133,7 @@ export default function LandingPage() {
                   <div>
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-muted-foreground flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500" /> Acme Corp</span>
-                      <span className="text-[#00b8a3]">Skickat</span>
+                      <span className="text-[#00b8a3]">Säkrad</span>
                     </div>
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-primary to-[#00b8a3] w-full rounded-full" />
@@ -142,7 +142,7 @@ export default function LandingPage() {
                   <div>
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-muted-foreground flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" /> TechNova AB</span>
-                      <span className="text-amber-400 animate-pulse">Genererar...</span>
+                      <span className="text-amber-400 animate-pulse">Analyserar gäldenär...</span>
                     </div>
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-amber-500 to-amber-300 w-1/2 rounded-full animate-pulse" />
@@ -175,7 +175,7 @@ export default function LandingPage() {
           </div>
           <h3 className="text-xl font-medium mb-3">1. Koppla & Synka</h3>
           <p className="text-muted-foreground leading-relaxed">
-            Integrera Superclaim med Niora, Fortnox eller Visma på under en minut. Vi hämtar automatiskt upp de fakturor som förfallit.
+            Integrera Superclaim med ditt affärssystem (t.ex. Fortnox eller Visma) på under en minut. Vi hämtar automatiskt upp de fakturor som förfallit.
           </p>
         </GlassCard>
 
@@ -183,9 +183,9 @@ export default function LandingPage() {
           <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 border border-primary/20">
             <BrainCircuit className="h-6 w-6 text-primary" />
           </div>
-          <h3 className="text-xl font-medium mb-3">2. AI-agenten tar över</h3>
+          <h3 className="text-xl font-medium mb-3">2. Vi sköter hanteringen</h3>
           <p className="text-muted-foreground leading-relaxed">
-            Vår AI analyserar varje unikt ärende och skickar skräddarsydda, empatiska påminnelser via SMS och E-post för att bevara kundrelationen.
+            Superclaim hanterar varje ärende unikt för optimalt utfall. Detta sker genom att skicka skräddarsydda påminnelser via SMS och E-post baserat på kundens betalningshistorik och beteende.
           </p>
         </GlassCard>
 
@@ -193,9 +193,9 @@ export default function LandingPage() {
           <div className="h-12 w-12 rounded-lg bg-[#f5c842]/10 flex items-center justify-center mb-6 border border-[#f5c842]/20">
             <ShieldCheck className="h-6 w-6 text-[#f5c842]" />
           </div>
-          <h3 className="text-xl font-medium mb-3">3. Få betalt</h3>
+          <h3 className="text-xl font-medium mb-3">3. Förbättrat kassaflöde</h3>
           <p className="text-muted-foreground leading-relaxed">
-            Pengarna betalas direkt in på ditt konto. Vi eskalerar ärendet till inkasso endast som en sista utväg om gäldenären vägrar samarbeta.
+            Superclaim har hitills genererat i en positiv ROI för samtliga kunder genom effekten av förbättrat kassaflöde.
           </p>
         </GlassCard>
       </div>
@@ -204,37 +204,37 @@ export default function LandingPage() {
       <div id="fordelar" className="mt-32 w-full max-w-6xl mx-auto px-4 text-left relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-8">
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif italic tracking-tight leading-[1.1]">Mer pengar in.<br />Mindre huvudvärk.</h2>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif italic tracking-tight leading-[1.1]">Förbättrat kassaflöde genererar i direkt positiva effekter.</h2>
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-              Traditionell inkasso är stelbent, aggressivt och förstör relationer. Superclaim.io arbetar proaktivt och personligt, vilket leder till att fakturor betalas 40% snabbare i genomsnitt.
+              Superclaim erbjuder en helt ny typ tjänst som automatiserar något som tidigare krävs en omständig, dyr och manuell handpåläggning. Effekten av vår tjänst leder i snitt till att 1% färre fakturor behöver drivas in via inkassotjänster och i slutändan bli ärenden hos Kronofogden.
             </p>
             <ul className="space-y-6 pt-4">
               <li className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
                   <TrendingUp className="h-6 w-6 text-primary" />
                 </div>
-                <span className="text-lg font-medium">Öka din indrivningsgrad med upp till <span className="text-primary">85%</span></span>
+                <span className="text-lg font-medium">Optimera ditt kassaflöde. <span className="text-primary"></span></span>
               </li>
               <li className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
                   <Clock className="h-6 w-6 text-primary" />
                 </div>
-                <span className="text-lg font-medium">Spara i snitt <span className="text-primary">15 timmar</span> i månaden på administration</span>
+                <span className="text-lg font-medium">Spara pengar genom minimerad administrationkostnad <span className="text-primary"></span></span>
               </li>
             </ul>
           </div>
           <GlassCard glowColor="cyan" className="p-10 bg-[#122220]/60 relative overflow-hidden">
 
             <div className="absolute -right-10 -top-10 text-[150px] font-serif italic text-primary/10 select-none">"</div>
-            <h3 className="text-xl font-semibold mb-6 relative z-10 text-white">&quot;Agenten betalade sig själv på 3 dagar&quot;</h3>
+            <h3 className="text-xl font-semibold mb-6 relative z-10 text-white">&quot;Förbättrade kassaflödet redan första månaden.&quot;</h3>
             <p className="text-lg leading-relaxed text-muted-foreground mb-10 relative z-10">
-              "Vi var tveksamma till att låta en AI hantera våra kunder, men tonen är så proffsig att våra kunder till och med tackat oss för påminnelserna. Plus, vårt kassaflöde har aldrig varit starkare. En no-brainer för SaaS-bolag."
+              "Vi är glada att vi gav Superclaim teamet chansen att bevisa sin produkt under test perioden, nu i efterhand så finns det inte en ända anledning att ångra beslutet att lägga in deras tjänst som ett steg mellan att en faktura förfaller och att vi eskalerar det till den typ av tjänster som erbjuds idag i form av inkasso och dylikt."
             </p>
             <div className="flex items-center gap-4 relative z-10 mt-auto">
               <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-[#00b8a3] flex items-center justify-center font-serif italic text-background font-bold text-lg shadow-[0_0_15px_rgba(0,229,204,0.3)]">A</div>
               <div>
-                <p className="font-semibold text-white">Anna Bergström</p>
-                <p className="text-sm text-primary">VD, TechNova Solutions</p>
+                <p className="font-semibold text-white">Tidig testanvändare</p>
+                <p className="text-sm text-primary">VD, Bolag X</p>
               </div>
             </div>
           </GlassCard>
@@ -249,12 +249,12 @@ export default function LandingPage() {
             <span className="relative inline-flex rounded-full h-3 w-3 bg-[#f5c842]"></span>
           </span>
           <span className="font-semibold tracking-wide text-sm md:text-base">
-            Rättvis prissättning. Inga trösklar.
+            Vi automatisera påminnelser och inkassoförberedande åtgärder.
           </span>
         </div>
-        <h2 className="text-4xl md:text-6xl font-serif italic tracking-tight text-center mb-6">Vi tar endast 9%<br /> av det vi drar in.</h2>
+        <h2 className="text-4xl md:text-6xl font-serif italic tracking-tight text-center mb-6">Minska antalet förfallna fakturor. <br />Med garanterad positiv ROI.</h2>
         <p className="text-xl text-muted-foreground text-center max-w-2xl mb-12 font-light">
-          Du betalar ingen månadskostnad, inga startavgifter och inga dolda kostnader. Misslyckas vi med att driva in skulden, kostar det dig noll kronor.
+          Låg fast kostnad i kombination med en riskfri betalningsmodell där Superclaim endast tar betalt för lyckat utfall. Alltså vi delar incitament med alla våra kunder.
         </p>
         <Button size="lg" asChild className="h-16 px-12 bg-[#ccff00] text-[#0d1a18] text-xl font-semibold shadow-[0_0_30px_rgba(204,255,0,0.2)] hover:shadow-[0_0_40px_rgba(204,255,0,0.4)] hover:scale-[1.05] transition-all rounded-full">
           <Link href="/onboarding">

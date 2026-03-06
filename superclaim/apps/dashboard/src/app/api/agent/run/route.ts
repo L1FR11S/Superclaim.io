@@ -39,19 +39,17 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/agent/run
- * Allow manual trigger from dashboard / testing.
+ * Manuell trigger från dashboard / Test Panel.
+ * Kräver inloggad Supabase-session (räcker för Test Panel).
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
     try {
-        const cronSecret = process.env.CRON_SECRET
-        if (cronSecret) {
-            const authHeader = request.headers.get('authorization')
-            if (authHeader !== `Bearer ${cronSecret}`) {
-                // Allow unauthenticated in dev
-                if (process.env.NODE_ENV === 'production') {
-                    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-                }
-            }
+        const { createClient } = await import('@/utils/supabase/server')
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized — login required' }, { status: 401 })
         }
 
         const results = await runAgentForAllOrgs()
@@ -69,3 +67,4 @@ export async function POST(request: NextRequest) {
         )
     }
 }
+

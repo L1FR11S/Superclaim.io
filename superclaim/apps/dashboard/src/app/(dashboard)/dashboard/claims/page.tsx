@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, Download, Plus, RefreshCw } from 'lucide-react';
+import { Search, Filter, Download, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { NewClaimModal } from '@/components/claims/NewClaimModal';
 
@@ -61,6 +61,10 @@ export default function ClaimsListPage() {
     const [fortnoxConnected, setFortnoxConnected] = useState(false);
     const [syncLoading, setSyncLoading] = useState(false);
 
+    // Multi-select state
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [deleteLoading, setDeleteLoading] = useState(false);
+
     const loadClaims = () => {
         setLoading(true);
         fetch('/api/claims')
@@ -86,6 +90,42 @@ export default function ClaimsListPage() {
         const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
+
+    const allFilteredSelected = filtered.length > 0 && filtered.every(c => selected.has(c.id));
+    const someSelected = selected.size > 0;
+
+    const toggleAll = () => {
+        if (allFilteredSelected) {
+            setSelected(new Set());
+        } else {
+            setSelected(new Set(filtered.map(c => c.id)));
+        }
+    };
+
+    const toggleOne = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSelected(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
+
+    const handleBulkDelete = async () => {
+        if (!confirm(`Vill du ta bort ${selected.size} ärende${selected.size > 1 ? 'n' : ''}? Det går inte att ångra.`)) return;
+        setDeleteLoading(true);
+        let deleted = 0;
+        let failed = 0;
+        for (const id of selected) {
+            const res = await fetch(`/api/claims/${id}`, { method: 'DELETE' });
+            res.ok ? deleted++ : failed++;
+        }
+        setSelected(new Set());
+        loadClaims();
+        setDeleteLoading(false);
+        if (deleted > 0) toast.success(`${deleted} ärende${deleted > 1 ? 'n' : ''} borttaget`);
+        if (failed > 0) toast.error(`${failed} kunde inte tas bort`);
+    };
 
     const handleExport = () => {
         exportToCsv(filtered);
@@ -189,12 +229,61 @@ export default function ClaimsListPage() {
                 </div>
             </div>
 
+            {/* Bulk action bar — visas när något är markerat */}
+            {someSelected && (
+                <div className="flex items-center gap-3 px-4 py-2.5 bg-[#122220] border border-primary/20 rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                    <span className="text-sm text-muted-foreground">
+                        <span className="text-white font-medium">{selected.size}</span> markerade
+                    </span>
+                    <div className="flex-1" />
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSelected(new Set())}
+                        className="text-muted-foreground hover:text-foreground h-8"
+                    >
+                        Avmarkera alla
+                    </Button>
+                    <Button
+                        size="sm"
+                        disabled={deleteLoading}
+                        onClick={handleBulkDelete}
+                        className="h-8 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:text-red-300"
+                    >
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                        {deleteLoading ? 'Tar bort...' : `Ta bort ${selected.size} st`}
+                    </Button>
+                </div>
+            )}
+
             {/* Table */}
             <GlassCard className="rounded-xl overflow-hidden border-[#ffffff08]">
                 <Table>
                     <TableHeader className="bg-[#122220]">
                         <TableRow className="border-[#ffffff08] hover:bg-transparent">
-                            <TableHead className="text-muted-foreground py-4 px-6 font-medium">Gäldenär</TableHead>
+                            {/* Checkbox header — markera alla */}
+                            <TableHead className="w-10 px-4">
+                                <button
+                                    onClick={toggleAll}
+                                    className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${allFilteredSelected
+                                        ? 'bg-primary border-primary'
+                                        : filtered.some(c => selected.has(c.id))
+                                            ? 'bg-primary/30 border-primary'
+                                            : 'border-[#ffffff20] hover:border-primary/50'
+                                        }`}
+                                    aria-label="Markera alla"
+                                >
+                                    {allFilteredSelected && (
+                                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                            <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-background" />
+                                        </svg>
+                                    )}
+                                    {!allFilteredSelected && filtered.some(c => selected.has(c.id)) && (
+                                        <div className="w-2 h-0.5 bg-primary rounded" />
+                                    )}
+                                </button>
+                            </TableHead>
+                            <TableHead className="text-muted-foreground py-4 font-medium">Gäldenär</TableHead>
                             <TableHead className="text-muted-foreground font-medium">Belopp</TableHead>
                             <TableHead className="text-muted-foreground font-medium">Förfall</TableHead>
                             <TableHead className="text-muted-foreground font-medium">Försenad</TableHead>
@@ -206,10 +295,25 @@ export default function ClaimsListPage() {
                         {filtered.map((claim) => (
                             <TableRow
                                 key={claim.id}
-                                className="border-[#ffffff08] hover:bg-primary/5 transition-colors cursor-pointer"
+                                className={`border-[#ffffff08] hover:bg-primary/5 transition-colors cursor-pointer ${selected.has(claim.id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
                                 onClick={() => router.push(`/dashboard/claims/${claim.id}`)}
                             >
-                                <TableCell className="px-6 py-4 font-medium">{claim.debtor_name}</TableCell>
+                                <TableCell className="px-4" onClick={(e) => toggleOne(claim.id, e)}>
+                                    <button
+                                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${selected.has(claim.id)
+                                            ? 'bg-primary border-primary'
+                                            : 'border-[#ffffff20] hover:border-primary/50'
+                                            }`}
+                                        aria-label={`Markera ${claim.debtor_name}`}
+                                    >
+                                        {selected.has(claim.id) && (
+                                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                                <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-background" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </TableCell>
+                                <TableCell className="py-4 font-medium">{claim.debtor_name}</TableCell>
                                 <TableCell>{claim.amount.toLocaleString('sv-SE')} {claim.currency}</TableCell>
                                 <TableCell className={claim.status === 'paid' ? 'text-muted-foreground' : 'text-destructive font-medium'}>
                                     {new Date(claim.due_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -218,8 +322,7 @@ export default function ClaimsListPage() {
                                 <TableCell>
                                     {claim.current_step > 0 ? (
                                         <div className="flex items-center gap-2">
-                                            <span className={`h-2 w-2 rounded-full ${claim.current_step <= 2 ? 'bg-primary animate-pulse' : 'bg-[#f59e0b]'
-                                                }`} />
+                                            <span className={`h-2 w-2 rounded-full ${claim.current_step <= 2 ? 'bg-primary animate-pulse' : 'bg-[#f59e0b]'}`} />
                                             Steg {claim.current_step}
                                         </div>
                                     ) : '-'}
@@ -231,7 +334,7 @@ export default function ClaimsListPage() {
                         ))}
                         {filtered.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-12">
+                                <TableCell colSpan={7} className="text-center py-12">
                                     <div className="flex flex-col items-center gap-3">
                                         <p className="text-muted-foreground">Inga ärenden hittades.</p>
                                         <Button

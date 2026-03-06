@@ -93,6 +93,7 @@ export default function ClaimsListPage() {
 
     const allFilteredSelected = filtered.length > 0 && filtered.every(c => selected.has(c.id));
     const someSelected = selected.size > 0;
+    const someButNotAll = filtered.some(c => selected.has(c.id)) && !allFilteredSelected;
 
     const toggleAll = () => {
         if (allFilteredSelected) {
@@ -102,8 +103,7 @@ export default function ClaimsListPage() {
         }
     };
 
-    const toggleOne = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const toggleOne = (id: string) => {
         setSelected(prev => {
             const next = new Set(prev);
             next.has(id) ? next.delete(id) : next.add(id);
@@ -262,26 +262,28 @@ export default function ClaimsListPage() {
                     <TableHeader className="bg-[#122220]">
                         <TableRow className="border-[#ffffff08] hover:bg-transparent">
                             {/* Checkbox header — markera alla */}
-                            <TableHead className="w-10 px-4">
-                                <button
+                            <TableHead className="px-4" style={{ width: '44px', minWidth: '44px' }}>
+                                <div
                                     onClick={toggleAll}
-                                    className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${allFilteredSelected
-                                        ? 'bg-primary border-primary'
-                                        : filtered.some(c => selected.has(c.id))
-                                            ? 'bg-primary/30 border-primary'
-                                            : 'border-[#ffffff20] hover:border-primary/50'
+                                    className={`w-[18px] h-[18px] rounded-[4px] border-2 flex items-center justify-center cursor-pointer transition-all select-none ${allFilteredSelected
+                                            ? 'bg-primary border-primary'
+                                            : someButNotAll
+                                                ? 'bg-primary/20 border-primary'
+                                                : 'border-[#3d5252] hover:border-primary/60 bg-[#1a2f2e]'
                                         }`}
                                     aria-label="Markera alla"
+                                    role="checkbox"
+                                    aria-checked={allFilteredSelected ? true : someButNotAll ? 'mixed' : false}
                                 >
                                     {allFilteredSelected && (
-                                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                                            <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-background" />
+                                        <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                                            <path d="M1 4.5L4 7.5L10 1" stroke="#0a1a18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
                                     )}
-                                    {!allFilteredSelected && filtered.some(c => selected.has(c.id)) && (
-                                        <div className="w-2 h-0.5 bg-primary rounded" />
+                                    {someButNotAll && (
+                                        <div className="w-2.5 h-0.5 bg-primary rounded-full" />
                                     )}
-                                </button>
+                                </div>
                             </TableHead>
                             <TableHead className="text-muted-foreground py-4 font-medium">Gäldenär</TableHead>
                             <TableHead className="text-muted-foreground font-medium">Belopp</TableHead>
@@ -298,20 +300,28 @@ export default function ClaimsListPage() {
                                 className={`border-[#ffffff08] hover:bg-primary/5 transition-colors cursor-pointer ${selected.has(claim.id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
                                 onClick={() => router.push(`/dashboard/claims/${claim.id}`)}
                             >
-                                <TableCell className="px-4" onClick={(e) => toggleOne(claim.id, e)}>
-                                    <button
-                                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${selected.has(claim.id)
-                                            ? 'bg-primary border-primary'
-                                            : 'border-[#ffffff20] hover:border-primary/50'
+                                <TableCell
+                                    className="px-4"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleOne(claim.id);
+                                    }}
+                                >
+                                    <div
+                                        className={`w-[18px] h-[18px] rounded-[4px] border-2 flex items-center justify-center cursor-pointer transition-all select-none ${selected.has(claim.id)
+                                                ? 'bg-primary border-primary'
+                                                : 'border-[#3d5252] hover:border-primary/60 bg-[#1a2f2e]'
                                             }`}
+                                        role="checkbox"
                                         aria-label={`Markera ${claim.debtor_name}`}
+                                        aria-checked={selected.has(claim.id)}
                                     >
                                         {selected.has(claim.id) && (
-                                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                                                <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-background" />
+                                            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                                                <path d="M1 4.5L4 7.5L10 1" stroke="#0a1a18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                             </svg>
                                         )}
-                                    </button>
+                                    </div>
                                 </TableCell>
                                 <TableCell className="py-4 font-medium">{claim.debtor_name}</TableCell>
                                 <TableCell>{claim.amount.toLocaleString('sv-SE')} {claim.currency}</TableCell>

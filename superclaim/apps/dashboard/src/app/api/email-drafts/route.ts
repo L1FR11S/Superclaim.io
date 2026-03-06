@@ -68,22 +68,11 @@ export async function PATCH(request: Request) {
                 })
             }
 
+            // Uppdatera draften till 'sent' — visas som "Skickat" i UI utan att skapa en ny rad
             await admin
                 .from('email_drafts')
-                .update({ status: 'approved', sent_at: new Date().toISOString() })
+                .update({ status: 'sent', sent_at: new Date().toISOString() })
                 .eq('id', draftId)
-
-            await admin.from('claim_communications').insert({
-                claim_id: draft.claim_id,
-                org_id: draft.org_id,
-                step: draft.step,
-                channel: 'email',
-                direction: 'outbound',
-                subject: draft.subject,
-                body: draft.body,
-                agentmail_message_id: sentResult.messageId || null,
-                agentmail_thread_id: sentResult.threadId || null,
-            })
 
             const delays = settings?.step_delays || { step1: 3, step2: 7, step3: 7, step4: 8 }
             const delayKey = `step${draft.step}`
@@ -103,6 +92,7 @@ export async function PATCH(request: Request) {
                 .eq('id', draft.claim_id)
 
             return NextResponse.json({ message: 'Mejl godkänt och skickat' })
+
         }
 
         if (action === 'reject') {

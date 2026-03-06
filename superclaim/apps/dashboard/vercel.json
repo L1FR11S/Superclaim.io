@@ -3,6 +3,10 @@
     {
       "path": "/api/agent/run",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/fortnox/refresh-all",
+      "schedule": "0 3 * * *"
     }
   ]
 }

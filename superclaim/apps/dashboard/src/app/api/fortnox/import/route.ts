@@ -26,7 +26,7 @@ export async function POST() {
         // Check Fortnox connection
         const { data: settings } = await admin
             .from('org_settings')
-            .select('fortnox_connected')
+            .select('fortnox_connected, agent_flow')
             .eq('org_id', org.id)
             .single()
 
@@ -96,6 +96,8 @@ export async function POST() {
                     status: 'active',
                     current_step: 0,
                     source: 'fortnox',
+                    // Snapshot av nuvarande agentflöde
+                    agent_flow: settings?.agent_flow ?? null,
                 })
 
                 imported++

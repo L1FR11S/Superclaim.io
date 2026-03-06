@@ -143,6 +143,13 @@ export async function POST(request: Request) {
             .single()
         if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
 
+        // Hämta org-settings för att snapshottera agent_flow
+        const { data: orgSettings } = await admin
+            .from('org_settings')
+            .select('agent_flow')
+            .eq('org_id', org.id)
+            .single()
+
         const formData = await request.formData()
 
         const debtor_name = formData.get('debtor_name') as string
@@ -205,6 +212,8 @@ export async function POST(request: Request) {
                 current_step: 0,
                 next_action_at: nextAction.toISOString(),
                 attachment_url,
+                // Snapshot av nuvarande agentflöde — ändringar i flödet påverkar ej detta ärende
+                agent_flow: orgSettings?.agent_flow ?? null,
             })
             .select()
             .single()

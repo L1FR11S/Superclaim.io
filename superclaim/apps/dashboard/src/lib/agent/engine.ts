@@ -489,8 +489,13 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
 
         for (const claim of claims as Claim[]) {
             try {
-                if (hasCustomFlow) {
-                    await processClaimWithFlow(claim, orgSettings.agent_flow!, orgSettings, orgName, result)
+                // Prioritera ärendets egna snapshot-flow (om det finns),
+                // annars fall tillbaka till org:ens globala flow.
+                const claimFlow = (claim as any).agent_flow ?? orgSettings.agent_flow
+                const useCustomFlow = (claimFlow?.nodes?.length ?? 0) > 0
+
+                if (useCustomFlow) {
+                    await processClaimWithFlow(claim, claimFlow, orgSettings, orgName, result)
                 } else {
                     await processClaimLegacy(claim, orgSettings, orgName, stepDelays, result)
                 }

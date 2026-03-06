@@ -22,6 +22,12 @@ export async function POST(req: NextRequest) {
         .single()
     if (!org) return NextResponse.json({ error: 'No org' }, { status: 400 })
 
+    const { data: orgSettings } = await admin
+        .from('org_settings')
+        .select('agent_flow')
+        .eq('org_id', org.id)
+        .single()
+
     // Skapa ett redan förfallet testärende
     const { data: claim, error } = await admin.from('claims').insert({
         org_id: org.id,
@@ -35,6 +41,7 @@ export async function POST(req: NextRequest) {
         status: 'active',
         current_step: 0,
         next_action_at: new Date().toISOString(),
+        agent_flow: orgSettings?.agent_flow ?? null,
     }).select().single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

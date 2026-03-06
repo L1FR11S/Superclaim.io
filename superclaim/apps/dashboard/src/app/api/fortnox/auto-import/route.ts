@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     // Hämta alla org med Fortnox kopplat + auto-import aktiverat
     const { data: orgs, error } = await admin
         .from('org_settings')
-        .select('org_id, fortnox_connected, fortnox_auto_import')
+        .select('org_id, fortnox_connected, fortnox_auto_import, agent_flow')
         .eq('fortnox_connected', true)
         .eq('fortnox_auto_import', true)
 
@@ -97,6 +97,8 @@ export async function POST(req: Request) {
                         status: 'active',
                         current_step: 0,
                         source: 'fortnox',
+                        // Snapshot av agentflödet vid import
+                        agent_flow: (org as any).agent_flow ?? null,
                     })
 
                     orgResult.imported++

@@ -133,6 +133,26 @@ export default function TestPage() {
         }
     }
 
+    // ─── Hoppa delay per ärende ──────────────────────────────
+    const handleSkipDelay = async (claimId: string, debtorName: string) => {
+        setLoading(`skip-${claimId}`)
+        addLog('warn', `⏩ Hoppar delay för ${debtorName}...`)
+        try {
+            const res = await fetch(`/api/claims/${claimId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'skip_delay' }),
+            })
+            if (!res.ok) throw new Error('Kunde inte hoppa delay')
+            addLog('success', `✅ Delay hoppat för ${debtorName} — kör agent för att fortsätta`)
+            await loadFortnoxClaims()
+        } catch (e: any) {
+            addLog('error', `❌ ${e.message}`)
+        } finally {
+            setLoading(null)
+        }
+    }
+
     // ─── Rensa testdata ──────────────────────────────────────────────
     const handleDelete = async () => {
         setLoading('delete')
@@ -200,8 +220,8 @@ export default function TestPage() {
                 {steps.map((s, i) => (
                     <div key={s.n} className="flex items-center gap-2">
                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${step === s.n ? 'bg-primary/15 border-primary/30 text-primary' :
-                                step > s.n ? 'bg-green-500/10 border-green-500/20 text-green-400' :
-                                    'bg-white/[0.03] border-white/[0.06] text-muted-foreground/40'
+                            step > s.n ? 'bg-green-500/10 border-green-500/20 text-green-400' :
+                                'bg-white/[0.03] border-white/[0.06] text-muted-foreground/40'
                             }`}>
                             {step > s.n ? <CheckCircle2 className="h-3.5 w-3.5" /> : <s.icon className="h-3.5 w-3.5" />}
                             Steg {s.n}: {s.label}
@@ -288,6 +308,16 @@ export default function TestPage() {
                                                 ? '✅ Redo att processas'
                                                 : `⏸ Väntar till ${new Date(c.next_action_at).toLocaleString('sv-SE')}`}
                                         </div>
+                                    )}
+                                    {/* Hoppa delay-knapp — bara synlig när ärendet väntar */}
+                                    {c.next_action_at && new Date(c.next_action_at) > new Date() && (
+                                        <button
+                                            onClick={() => handleSkipDelay(c.id, c.debtor_name)}
+                                            disabled={!!loading}
+                                            className="mt-1 w-full text-[10px] text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded px-2 py-1 hover:bg-yellow-400/20 transition-colors disabled:opacity-40"
+                                        >
+                                            {loading === `skip-${c.id}` ? '⏳ Hoppar...' : '⏩ Hoppa delay'}
+                                        </button>
                                     )}
                                 </div>
                             ))}

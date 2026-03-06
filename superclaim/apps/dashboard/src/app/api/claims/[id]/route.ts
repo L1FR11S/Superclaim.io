@@ -124,6 +124,7 @@ export async function PATCH(
             case 'resume': updates.paused = false; break
             case 'cancel': updates.status = 'cancelled'; break
             case 'escalate': updates.status = 'escalated'; break
+            case 'skip_delay': updates.next_action_at = new Date().toISOString(); break
             default: return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
         }
 

@@ -214,8 +214,29 @@ async function executeNode(
 
 
         case 'sms': {
-            // If the node is in the flow, the customer wants SMS
-            // Only check if debtor has a phone number
+            const smsStep = claim.current_step + 1
+
+            // ─── Deduplication guard ─────────────────────────────────────
+            const { count: existingSmsComm } = await supabaseAdmin
+                .from('claim_communications')
+                .select('id', { count: 'exact', head: true })
+                .eq('claim_id', claim.id)
+                .eq('step', smsStep)
+                .eq('channel', 'sms')
+
+            const { count: existingSmsDraft } = await supabaseAdmin
+                .from('sms_drafts')
+                .select('id', { count: 'exact', head: true })
+                .eq('claim_id', claim.id)
+                .eq('step', smsStep)
+
+            if ((existingSmsComm || 0) > 0 || (existingSmsDraft || 0) > 0) {
+                result.actions.push(`⏭ SMS steg ${smsStep}: Redan skickat/sparat — hoppar vidare`)
+                const next = getNextNode(flow, node.id)
+                return { nextNodeId: next?.id || null, stepIncrement: true }
+            }
+            // ─────────────────────────────────────────────────────────────
+
             if (claim.debtor_phone) {
                 try {
                     const smsFrom = orgSettings.sms_sender_name || orgName
@@ -224,27 +245,27 @@ async function executeNode(
                         amount: claim.amount,
                         currency: claim.currency,
                         invoiceUrl: claim.attachment_url,
-                        step: claim.current_step + 1,
+                        step: smsStep,
                     })
 
                     if (orgSettings.sms_preview) {
                         await supabaseAdmin.from('sms_drafts').insert({
                             claim_id: claim.id, org_id: claim.org_id,
                             to: claim.debtor_phone, body: smsMessage,
-                            step: claim.current_step + 1, status: 'pending',
+                            step: smsStep, status: 'pending',
                         })
-                        result.actions.push(`📝 SMS utkast (steg ${claim.current_step + 1}): Sparat för granskning (sms_preview=true)`)
+                        result.actions.push(`📝 SMS utkast (steg ${smsStep}): Sparat för granskning (sms_preview=true)`)
                     } else {
                         const smsResult = await sendSms({
                             from: smsFrom, to: claim.debtor_phone, message: smsMessage,
                         })
                         await supabaseAdmin.from('claim_communications').insert({
                             claim_id: claim.id, org_id: claim.org_id,
-                            step: claim.current_step + 1, channel: 'sms', direction: 'outbound',
+                            step: smsStep, channel: 'sms', direction: 'outbound',
                             body: smsMessage, metadata: { elks_id: smsResult.id, cost: smsResult.cost },
                         })
                         result.smsSent++
-                        result.actions.push(`📱 SMS skickat (steg ${claim.current_step + 1}) → ${claim.debtor_phone}`)
+                        result.actions.push(`📱 SMS skickat (steg ${smsStep}) → ${claim.debtor_phone}`)
                     }
                 } catch (err: any) {
                     result.errors.push(`SMS ${claim.debtor_name}: ${err.message}`)

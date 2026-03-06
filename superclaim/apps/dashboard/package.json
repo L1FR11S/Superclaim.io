@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1003.0",
     "@google/genai": "^1.43.0",
     "@sentry/nextjs": "^10.42.0",
     "@supabase/ssr": "^0.8.0",

@@ -22,7 +22,7 @@ export default function LandingPage() {
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
           <Link href="#hurgordet" className="hover:text-foreground transition-colors">Hur det fungerar</Link>
           <Link href="#fordelar" className="hover:text-foreground transition-colors">Fördelar</Link>
-          <Link href="#priser" className="hover:text-foreground transition-colors">Priser</Link>
+          <Link href="#priser" className="hover:text-foreground transition-colors">Beräkna potentiell ROI</Link>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
@@ -47,13 +47,13 @@ export default function LandingPage() {
               <span className="bg-white/10 text-white px-2 py-0.5 rounded-md text-xs font-semibold">Nyhet</span>
               <span className="flex items-center gap-1.5 text-white/90">
                 <HeartHandshake className="h-4 w-4 text-primary" />
-                Optimera kassaflödet och rädda kundrelationen
+                Optimera kassaflödet och bevarar kundrelationen
               </span>
             </div>
 
             <h1 className="font-serif italic text-5xl lg:text-[4.7rem] tracking-tight leading-[1.03]">
-              <span className="block text-white"> Minska andelen förfallna fakturor.</span>
-              <span className="block text-[#e8eada]">Och onödig användning av</span>
+              <span className="block text-white"> Minska andelen förfallna fakturor</span>
+              <span className="block text-[#e8eada]">Och beroendet av</span>
               <span className="block text-[#e8eada]">
                 dyra <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#00b8a3]">inkassotjänster.</span>
               </span>
@@ -65,8 +65,8 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
               <p className="text-sm md:text-base font-serif italic text-white/50 w-full mb-2 sm:mb-0">
-                Låga avgifter. Ingen månadskostnad.<br />
-                Bara en smidigare väg till kassan.
+
+
               </p>
             </div>
 
@@ -173,9 +173,9 @@ export default function LandingPage() {
           <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 border border-primary/20">
             <Zap className="h-6 w-6 text-primary" />
           </div>
-          <h3 className="text-xl font-medium mb-3">1. Koppla & Synka</h3>
+          <h3 className="text-xl font-medium mb-3"> Enkel uppsättning</h3>
           <p className="text-muted-foreground leading-relaxed">
-            Integrera Superclaim med ditt affärssystem (t.ex. Fortnox eller Visma) på under en minut. Vi hämtar automatiskt upp de fakturor som förfallit.
+            Integrera Superclaim med ditt faktureringssystem (ERP) (t.ex. Fortnox eller Visma) via några få enkla steg. Därefter krävs ingen ytterligare handpåläggning.
           </p>
         </GlassCard>
 
@@ -183,9 +183,9 @@ export default function LandingPage() {
           <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 border border-primary/20">
             <BrainCircuit className="h-6 w-6 text-primary" />
           </div>
-          <h3 className="text-xl font-medium mb-3">2. Vi sköter hanteringen</h3>
+          <h3 className="text-xl font-medium mb-3">Systemet sköter allt</h3>
           <p className="text-muted-foreground leading-relaxed">
-            Superclaim hanterar varje ärende unikt för optimalt utfall. Detta sker genom att skicka skräddarsydda påminnelser via SMS och E-post baserat på kundens betalningshistorik och beteende.
+            Superclaim hanterar varje ärende automatiskt och unikt för optimalt utfall. Detta sker genom unika och skräddarsydda sekvenser med påminnelser via både SMS och E-post baserat på kundens betalningshistorik och beteende.
           </p>
         </GlassCard>
 
@@ -193,9 +193,9 @@ export default function LandingPage() {
           <div className="h-12 w-12 rounded-lg bg-[#f5c842]/10 flex items-center justify-center mb-6 border border-[#f5c842]/20">
             <ShieldCheck className="h-6 w-6 text-[#f5c842]" />
           </div>
-          <h3 className="text-xl font-medium mb-3">3. Förbättrat kassaflöde</h3>
+          <h3 className="text-xl font-medium mb-3">Positiv ROI</h3>
           <p className="text-muted-foreground leading-relaxed">
-            Superclaim har hitills genererat i en positiv ROI för samtliga kunder genom effekten av förbättrat kassaflöde.
+            Genom att Superclaim förbättrar kassaflödet i kombination med en rörlig prissättningsmodell har investeringen i att använda systemet resulterat i en positiv ROI för samtliga kunder.
           </p>
         </GlassCard>
       </div>
@@ -204,9 +204,9 @@ export default function LandingPage() {
       <div id="fordelar" className="mt-32 w-full max-w-6xl mx-auto px-4 text-left relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-8">
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif italic tracking-tight leading-[1.1]">Förbättrat kassaflöde genererar i direkt positiva effekter.</h2>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif italic tracking-tight leading-[1.1]">Direkt positiva effekter.</h2>
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-              Superclaim erbjuder en helt ny typ tjänst som automatiserar något som tidigare krävs en omständig, dyr och manuell handpåläggning. Effekten av vår tjänst leder i snitt till att 1% färre fakturor behöver drivas in via inkassotjänster och i slutändan bli ärenden hos Kronofogden.
+              Superclaim erbjuder en helt ny typ tjänst som automatiserar något som tidigare krävde en omständig, dyr och manuell handpåläggning. Reslutatet är att i snitt 17% färre fakturor behöver drivas in via inkassotjänster och i slutändan riskera att bli ärenden hos Kronofogden.
             </p>
             <ul className="space-y-6 pt-4">
               <li className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
@@ -219,21 +219,20 @@ export default function LandingPage() {
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
                   <Clock className="h-6 w-6 text-primary" />
                 </div>
-                <span className="text-lg font-medium">Spara pengar genom minimerad administrationkostnad <span className="text-primary"></span></span>
+                <span className="text-lg font-medium">Minimerad administrationkostnad. <span className="text-primary"></span></span>
               </li>
             </ul>
           </div>
           <GlassCard glowColor="cyan" className="p-10 bg-[#122220]/60 relative overflow-hidden">
 
             <div className="absolute -right-10 -top-10 text-[150px] font-serif italic text-primary/10 select-none">"</div>
-            <h3 className="text-xl font-semibold mb-6 relative z-10 text-white">&quot;Förbättrade kassaflödet redan första månaden.&quot;</h3>
+            <h3 className="text-xl font-semibold mb-6 relative z-10 text-white">&quot;Positiv ROI redan första månaden.&quot;</h3>
             <p className="text-lg leading-relaxed text-muted-foreground mb-10 relative z-10">
-              "Vi är glada att vi gav Superclaim teamet chansen att bevisa sin produkt under test perioden, nu i efterhand så finns det inte en ända anledning att ångra beslutet att lägga in deras tjänst som ett steg mellan att en faktura förfaller och att vi eskalerar det till den typ av tjänster som erbjuds idag i form av inkasso och dylikt."
-            </p>
+              "Vi är stolta och glada att vi som ett av dem första kunderna gav Superclaim-teamet möjligheten att bevisa sin produkt. Nu i efterhand ser jag ingen anledning till varför bolag med många utestående fakturor inte borde ge Superclaim samma möjlighet som vi en gång gjorde."            </p>
             <div className="flex items-center gap-4 relative z-10 mt-auto">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-[#00b8a3] flex items-center justify-center font-serif italic text-background font-bold text-lg shadow-[0_0_15px_rgba(0,229,204,0.3)]">A</div>
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-[#00b8a3] flex items-center justify-center font-serif italic text-background font-bold text-lg shadow-[0_0_15px_rgba(0,229,204,0.3)]">T</div>
               <div>
-                <p className="font-semibold text-white">Tidig testanvändare</p>
+                <p className="font-semibold text-white">Tidig referenskund</p>
                 <p className="text-sm text-primary">VD, Bolag X</p>
               </div>
             </div>
@@ -249,16 +248,16 @@ export default function LandingPage() {
             <span className="relative inline-flex rounded-full h-3 w-3 bg-[#f5c842]"></span>
           </span>
           <span className="font-semibold tracking-wide text-sm md:text-base">
-            Vi automatisera påminnelser och inkassoförberedande åtgärder.
+            Automatisera påminnelser och inkassoförberedande åtgärder
           </span>
         </div>
-        <h2 className="text-4xl md:text-6xl font-serif italic tracking-tight text-center mb-6">Minska antalet förfallna fakturor. <br />Med garanterad positiv ROI.</h2>
+        <h2 className="text-4xl md:text-6xl font-serif italic tracking-tight text-center mb-6">Färre förfallna fakturor. <br /> Garanterad positiv ROI.</h2>
         <p className="text-xl text-muted-foreground text-center max-w-2xl mb-12 font-light">
           Låg fast kostnad i kombination med en riskfri betalningsmodell där Superclaim endast tar betalt för lyckat utfall. Alltså vi delar incitament med alla våra kunder.
         </p>
         <Button size="lg" asChild className="h-16 px-12 bg-[#ccff00] text-[#0d1a18] text-xl font-semibold shadow-[0_0_30px_rgba(204,255,0,0.2)] hover:shadow-[0_0_40px_rgba(204,255,0,0.4)] hover:scale-[1.05] transition-all rounded-full">
           <Link href="/onboarding">
-            Skapa konto gratis &amp; börja idag
+            Beräkna din potentiella ROI
           </Link>
         </Button>
       </div>

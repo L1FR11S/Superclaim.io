@@ -152,6 +152,28 @@ async function executeNode(
             const tone = node.data.tone || orgSettings.tone || 'professional'
             const step = claim.current_step + 1
 
+            // ─── Deduplication guard ─────────────────────────────────────
+            // Förhindrar dubbelutskick om agenten körs parallellt/två gånger.
+            const { count: existingComm } = await supabaseAdmin
+                .from('claim_communications')
+                .select('id', { count: 'exact', head: true })
+                .eq('claim_id', claim.id)
+                .eq('step', step)
+                .eq('channel', 'email')
+
+            const { count: existingDraft } = await supabaseAdmin
+                .from('email_drafts')
+                .select('id', { count: 'exact', head: true })
+                .eq('claim_id', claim.id)
+                .eq('step', step)
+
+            if ((existingComm || 0) > 0 || (existingDraft || 0) > 0) {
+                result.actions.push(`⏭ E-post steg ${step}: Redan skickat/sparat — hoppar vidare`)
+                const next = getNextNode(flow, node.id)
+                return { nextNodeId: next?.id || null, stepIncrement: true }
+            }
+            // ─────────────────────────────────────────────────────────────
+
             // Generate email via Gemini
             const email = await generateCollectionEmail({
                 debtorName: claim.debtor_name,
@@ -189,6 +211,7 @@ async function executeNode(
             const next = getNextNode(flow, node.id)
             return { nextNodeId: next?.id || null, stepIncrement: true }
         }
+
 
         case 'sms': {
             // If the node is in the flow, the customer wants SMS

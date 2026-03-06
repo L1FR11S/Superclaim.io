@@ -98,7 +98,6 @@ export default function AdminTestPage() {
     }
 
     const runAgent = async () => {
-        if (!claim) return
         setLoading('run')
         addLog('info', '🤖 Startar agent — söker efter ärenden att processera...')
         try {
@@ -130,7 +129,7 @@ export default function AdminTestPage() {
                 addLog('warn', '⚠️ Inga ärenden hittades — ärendet är troligen eskalerat eller avslutat (status ≠ active). Skapa ett nytt testärende!')
             }
 
-            await refreshClaim(claim.id)
+            if (claim) await refreshClaim(claim.id)
         } catch (e: any) {
             addLog('error', `❌ ${e.message}`)
         } finally {
@@ -223,7 +222,7 @@ export default function AdminTestPage() {
 
                 <Button
                     onClick={runAgent}
-                    disabled={!claim || !!loading}
+                    disabled={!!loading}
                     className="bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30 h-auto py-3 flex-col gap-1"
                     variant="ghost"
                 >

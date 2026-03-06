@@ -24,25 +24,20 @@ interface Notification {
     id: string;
     text: string;
     time: string;
-    type: 'info' | 'success' | 'warning';
+    type: 'info' | 'success' | 'warning' | 'paid';
     href?: string;
 }
 
-const defaultNotifications: Notification[] = [
-    { id: '1', text: 'Acme Corp öppnade ditt mejl', time: '2 min sedan', type: 'info' },
-    { id: '2', text: 'Globex Inc har betalat 4 200 SEK', time: '1 timme sedan', type: 'success', href: '/dashboard/claims' },
-    { id: '3', text: 'TechNova Solutions — steg 4 skickat', time: '3 timmar sedan', type: 'warning' },
-];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const [showNotifications, setShowNotifications] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
-    const [notifications, setNotifications] = useState<Notification[]>(defaultNotifications);
-    const [pendingEmailsCount, setPendingEmailsCount] = useState(0);
-    const [lastSeenCounts, setLastSeenCounts] = useState({ claims: 0, emails: 0 });
-    const [hasNotifiedEmails, setHasNotifiedEmails] = useState(false);
+    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [pendingEmailsCount, setPendingEmailsCount] = useState(0)
+    const [prevPaidCount, setPrevPaidCount] = useState(-1)
+    const [hasNotifiedEmails, setHasNotifiedEmails] = useState(false)
     const [userEmail, setUserEmail] = useState<string>('');
     const [orgName, setOrgName] = useState<string>('');
     const notifRef = useRef<HTMLDivElement>(null);
@@ -55,38 +50,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const fetchNotifications = async () => {
         try {
-            const res = await fetch('/api/notifications');
-            const data = await res.json();
-            setNotifications(data.notifications || defaultNotifications);
-            const pending = data.pendingEmailsCount ?? 0;
-            const claimsCount = data.claimsCount ?? 0;
-            setPendingEmailsCount(pending);
+            const res = await fetch('/api/notifications')
+            const data = await res.json()
+            setNotifications(data.notifications || [])
+            const pending: number = data.pendingEmailsCount ?? 0
+            const paidCount: number = (data.notifications || []).filter((n: Notification) => n.type === 'paid').length
+            setPendingEmailsCount(pending)
 
+            // Toast: utkast väntar
             if (pending > 0 && !pathname.includes('/dashboard/drafts') && !hasNotifiedEmails) {
-                toast.info(`${pending} mejl väntar på godkännande`, {
-                    description: 'Gå till E-post för att granska.',
-                    action: {
-                        label: 'Öppna',
-                        onClick: () => router.push('/dashboard/drafts'),
-                    },
-                });
-                setHasNotifiedEmails(true);
+                toast.info(`${pending} ${pending === 1 ? 'meddelande väntar' : 'meddelanden väntar'} på godkännande`, {
+                    description: 'Gå till E-post / SMS för att granska.',
+                    action: { label: 'Öppna', onClick: () => router.push('/dashboard/drafts') },
+                })
+                setHasNotifiedEmails(true)
             }
 
-            setLastSeenCounts((prev) => {
-                if (claimsCount > prev.claims && prev.claims > 0) {
-                    toast.success(`${claimsCount - prev.claims} nya ärenden`, {
-                        description: 'Gå till Ärenden för att se dem.',
-                        action: {
-                            label: 'Visa',
-                            onClick: () => router.push('/dashboard/claims'),
-                        },
-                    });
+            // Toast: betalning inkommit
+            setPrevPaidCount(prev => {
+                if (prev >= 0 && paidCount > prev) {
+                    toast.success('Betalning inkommit! 🎉', {
+                        description: 'Ett ärende har markerats som betalt.',
+                        action: { label: 'Visa', onClick: () => router.push('/dashboard/claims') },
+                    })
                 }
-                return { claims: claimsCount, emails: pending };
-            });
+                return paidCount
+            })
         } catch { /* ignore */ }
-    };
+    }
 
     useEffect(() => {
         fetchNotifications();
@@ -195,7 +186,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 <Bell className="h-5 w-5 stroke-[1.5]" />
                                 {(pendingEmailsCount > 0 || notifications.length > 0) && (
                                     <span className="absolute top-2 right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary text-[9px] font-bold text-background shadow-[0_0_8px_rgba(0,229,204,0.4)] px-1">
-                                        {pendingEmailsCount > 0 ? (pendingEmailsCount > 9 ? '9+' : pendingEmailsCount) : notifications.length > 9 ? '9+' : notifications.length}
+                                        {pendingEmailsCount > 0
+                                            ? (pendingEmailsCount > 9 ? '9+' : pendingEmailsCount)
+                                            : (notifications.length > 9 ? '9+' : notifications.length)}
                                     </span>
                                 )}
                             </button>
@@ -206,7 +199,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         <h4 className="text-sm font-medium">Notifikationer</h4>
                                     </div>
                                     <div className="max-h-64 overflow-y-auto">
-                                        {notifications.map((n) => (
+                                        {notifications.length === 0 ? (
+                                            <div className="px-4 py-8 text-center text-sm text-muted-foreground/50">Inga notiser just nu</div>
+                                        ) : notifications.map((n) => (
                                             <Link
                                                 key={n.id}
                                                 href={n.href || '#'}
@@ -216,13 +211,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                                 <div className="flex items-start gap-3">
                                                     <div className={cn(
                                                         "mt-1 h-2 w-2 rounded-full shrink-0",
+                                                        n.type === 'paid' && "bg-[#f5c842]",
                                                         n.type === 'success' && "bg-[#f5c842]",
                                                         n.type === 'info' && "bg-primary",
                                                         n.type === 'warning' && "bg-amber-500",
                                                     )} />
                                                     <div>
                                                         <p className="text-sm text-foreground/90">{n.text}</p>
-                                                        <p className="text-xs text-muted-foreground mt-0.5">{n.time}</p>
+                                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                                            {n.time === 'nu' ? 'just nu' : new Date(n.time).toLocaleString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </Link>

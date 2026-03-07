@@ -56,10 +56,17 @@ export async function sendSms(params: {
         },
     })
 
-    const data = await res.json()
+    const text = await res.text()
+    let data: any
+    try {
+        data = JSON.parse(text)
+    } catch {
+        // 46elks returned plain text (e.g. "API access denied")
+        throw new Error(`46elks fel: ${text.trim()}`)
+    }
 
     if (!res.ok || data.status === 'failed') {
-        throw new Error(`46elks SMS failed: ${JSON.stringify(data)}`)
+        throw new Error(`46elks SMS misslyckades: ${JSON.stringify(data)}`)
     }
 
     return data as {

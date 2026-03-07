@@ -175,7 +175,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <main className="flex-1 md:pl-64 flex flex-col">
                 {/* Topbar */}
                 <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#ffffff08] bg-background/60 px-6 backdrop-blur-xl">
-                    <h2 className="text-lg font-medium text-muted-foreground">{getGreeting()}</h2>
+                    <h2 className="text-lg font-medium text-muted-foreground" suppressHydrationWarning>{getGreeting()}</h2>
                     <div className="flex items-center gap-2">
                         {/* Notifications */}
                         <div ref={notifRef} className="relative">

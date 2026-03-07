@@ -57,7 +57,7 @@ export async function PATCH(request: Request) {
             let smsResult: Awaited<ReturnType<typeof sendSms>>
             try {
                 smsResult = await sendSms({
-                    from: 'Superclaim',
+                    from: (process.env.ELKS_SENDER ?? 'Superclaim').trim(),
                     to: draft.to,
                     message: draft.body,
                 })

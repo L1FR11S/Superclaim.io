@@ -69,7 +69,7 @@ export async function PATCH(request: Request) {
             // Update draft status
             const { error: updateErr } = await admin
                 .from('sms_drafts')
-                .update({ status: 'approved', sent_at: new Date().toISOString() })
+                .update({ status: 'sent', sent_at: new Date().toISOString() })
                 .eq('id', draftId)
             if (updateErr) {
                 console.error('[sms-drafts] update draft failed:', updateErr.message)

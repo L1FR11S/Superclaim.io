@@ -7,9 +7,9 @@
  */
 
 function getAuth() {
-    const username = process.env.ELKS_API_USERNAME!
-    const password = process.env.ELKS_API_PASSWORD!
-    return Buffer.from(`${username}:${password}`).toString('base64')
+    const username = (process.env.ELKS_API_USERNAME ?? '').trim()
+    const password = (process.env.ELKS_API_PASSWORD ?? '').trim()
+    return btoa(`${username}:${password}`)
 }
 
 /**

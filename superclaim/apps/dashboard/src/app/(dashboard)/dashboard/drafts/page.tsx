@@ -154,8 +154,8 @@ export default function MessagesPage() {
             } else {
                 setSmsDrafts(smsDrafts.filter(d => d.id !== draftId));
             }
-        } catch {
-            toast.error('Något gick fel');
+        } catch (err: any) {
+            toast.error('Fel vid skickning', { description: err?.message || 'Okänt fel' });
         } finally {
             setActionLoading(null);
         }

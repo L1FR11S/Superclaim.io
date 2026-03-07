@@ -50,25 +50,34 @@ export async function PATCH(request: Request) {
                 .single()
 
             if (draftError || !draft) {
-                return NextResponse.json({ error: `Draft not found: ${draftError?.message}`, step: 1 }, { status: 404 })
+                return NextResponse.json({ error: `Draft not found: ${draftError?.message}`, step: 'fetch_draft' }, { status: 404 })
             }
 
             // Send SMS via 46elks
-            const smsFrom = 'Superclaim'  // Hardcode for now to eliminate variables
-            const smsResult = await sendSms({
-                from: smsFrom,
-                to: draft.to,
-                message: draft.body,
-            })
+            let smsResult: Awaited<ReturnType<typeof sendSms>>
+            try {
+                smsResult = await sendSms({
+                    from: 'Superclaim',
+                    to: draft.to,
+                    message: draft.body,
+                })
+            } catch (smsErr: any) {
+                console.error('[sms-drafts] sendSms failed:', smsErr.message)
+                return NextResponse.json({ error: `46elks: ${smsErr.message}`, step: 'send_sms' }, { status: 500 })
+            }
 
             // Update draft status
-            await admin
+            const { error: updateErr } = await admin
                 .from('sms_drafts')
                 .update({ status: 'approved', sent_at: new Date().toISOString() })
                 .eq('id', draftId)
+            if (updateErr) {
+                console.error('[sms-drafts] update draft failed:', updateErr.message)
+                return NextResponse.json({ error: `DB update: ${updateErr.message}`, step: 'update_draft' }, { status: 500 })
+            }
 
             // Log to claim_communications
-            await admin.from('claim_communications').insert({
+            const { error: insertErr } = await admin.from('claim_communications').insert({
                 claim_id: draft.claim_id,
                 org_id: draft.org_id,
                 step: draft.step,
@@ -77,6 +86,10 @@ export async function PATCH(request: Request) {
                 body: draft.body,
                 metadata: { elks_id: smsResult.id, cost: smsResult.cost },
             })
+            if (insertErr) {
+                console.error('[sms-drafts] insert communication failed:', insertErr.message)
+                // Don't fail — SMS was sent, just log the error
+            }
 
             return NextResponse.json({ message: 'SMS godkänt och skickat', smsId: smsResult.id })
         }

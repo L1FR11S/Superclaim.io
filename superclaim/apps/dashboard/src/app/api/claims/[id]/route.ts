@@ -169,10 +169,18 @@ export async function DELETE(
             .eq('id', id)
             .eq('org_id', org.id)
 
-        if (error) throw error
+        if (error) {
+            console.error('[DELETE claims] Supabase error:', JSON.stringify(error))
+            return NextResponse.json({
+                error: error.message,
+                code: error.code,
+                details: error.details,
+            }, { status: 500 })
+        }
 
         return NextResponse.json({ message: 'Ärende borttaget' })
     } catch (err: any) {
+        console.error('[DELETE claims] Unexpected error:', err.message)
         return NextResponse.json({ error: err.message }, { status: 500 })
     }
 }

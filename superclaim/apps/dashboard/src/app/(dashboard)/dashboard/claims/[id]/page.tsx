@@ -152,7 +152,8 @@ export default function ClaimDetailPage() {
                             toast.success('Ärende borttaget');
                             router.push('/dashboard/claims');
                         } else {
-                            toast.error('Kunde inte ta bort ärendet');
+                            const err = await res.json().catch(() => ({}));
+                            toast.error('Kunde inte ta bort ärendet', { description: err.error || `HTTP ${res.status}` });
                         }
                     }}
                 >

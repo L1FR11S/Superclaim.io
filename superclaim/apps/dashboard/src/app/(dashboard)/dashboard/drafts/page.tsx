@@ -132,11 +132,16 @@ export default function MessagesPage() {
         const endpoint = tab === 'email' ? '/api/email-drafts' : '/api/sms-drafts';
         const label = tab === 'email' ? 'Mejl' : 'SMS';
         try {
-            await fetch(endpoint, {
+            const res = await fetch(endpoint, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ draftId, action }),
             });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+                throw new Error(errData.error || `HTTP ${res.status}`);
+            }
 
             if (action === 'approve') {
                 toast.success(`${label} godkänt ✉️`, { description: 'Skickas inom kort.' });

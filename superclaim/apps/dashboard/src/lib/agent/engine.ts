@@ -204,6 +204,13 @@ async function executeNode(
                     subject: email.subject, body: email.body,
                     agentmail_message_id: sent.messageId, agentmail_thread_id: sent.threadId,
                 })
+                // Spara thread_id på claim så webhook kan matcha inkommande svar
+                if (sent.threadId && !claim.agentmail_thread_id) {
+                    await supabaseAdmin.from('claims').update({
+                        agentmail_thread_id: sent.threadId,
+                    }).eq('id', claim.id)
+                    claim.agentmail_thread_id = sent.threadId
+                }
                 result.emailsSent++
                 result.actions.push(`📤 E-post skickad (steg ${step}): "${email.subject}" → ${claim.debtor_email}`)
             }
@@ -413,6 +420,13 @@ async function processClaimLegacy(
             subject: email.subject, body: email.body,
             agentmail_message_id: sent.messageId, agentmail_thread_id: sent.threadId,
         })
+        // Spara thread_id på claim så webhook kan matcha inkommande svar
+        if (sent.threadId && !claim.agentmail_thread_id) {
+            await supabaseAdmin.from('claims').update({
+                agentmail_thread_id: sent.threadId,
+            }).eq('id', claim.id)
+            claim.agentmail_thread_id = sent.threadId
+        }
         result.emailsSent++
     }
 
@@ -491,11 +505,12 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
             return result
         }
 
-        // Get claims that need action (null next_action_at = new claim, never actioned)
+        // Get claims that need action (not paused, null next_action_at = new claim)
         const now = new Date().toISOString()
         const { data: claims, error: claimsError } = await supabaseAdmin
             .from('claims').select('*')
             .eq('org_id', orgId).eq('status', 'active')
+            .or('paused.is.null,paused.eq.false')
             .or(`next_action_at.is.null,next_action_at.lte.${now}`)
             .order('next_action_at', { ascending: true, nullsFirst: true })
 

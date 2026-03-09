@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Pause, XCircle, AlertTriangle, ExternalLink, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pause, XCircle, AlertTriangle, ExternalLink, Trash2, Send, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/shared/GlassCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -23,6 +23,7 @@ interface Claim {
     invoice_number?: string;
     source?: string;
     status: 'active' | 'paid' | 'escalated' | 'cancelled';
+    paused?: boolean;
     current_step: number;
     payment_link?: string;
 }
@@ -30,6 +31,7 @@ interface Claim {
 interface TimelineEvent {
     step: number;
     channel: 'email' | 'sms';
+    direction?: 'outbound' | 'inbound';
     subject: string;
     body: string;
     sentAt: string;
@@ -53,6 +55,9 @@ export default function ClaimDetailPage() {
     const [claim, setClaim] = useState<Claim | null>(null);
     const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const [replySubject, setReplySubject] = useState('');
+    const [replyMessage, setReplyMessage] = useState('');
+    const [replySending, setReplySending] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -64,6 +69,7 @@ export default function ClaimDetailPage() {
                 setTimeline(raw.map((e: any) => ({
                     ...e,
                     channel: (e.channel || 'email') as 'email' | 'sms',
+                    direction: e.direction || 'outbound',
                     sentAt: formatTimelineDate(e.sentAt),
                     openedAt: e.openedAt ? formatTimelineTime(e.openedAt) : null,
                 })));
@@ -71,6 +77,38 @@ export default function ClaimDetailPage() {
             })
             .catch(() => setLoading(false));
     }, [id]);
+
+    const sendReply = async () => {
+        if (!replyMessage.trim()) return;
+        setReplySending(true);
+        try {
+            const res = await fetch(`/api/claims/${id}/reply`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subject: replySubject, message: replyMessage }),
+            });
+            if (res.ok) {
+                toast.success('Svar skickat!');
+                setTimeline(prev => [...prev, {
+                    step: claim?.current_step || 0,
+                    channel: 'email',
+                    direction: 'outbound',
+                    subject: replySubject || `Re: Ärende ${claim?.debtor_name}`,
+                    body: replyMessage,
+                    sentAt: formatTimelineDate(new Date().toISOString()),
+                }]);
+                setReplySubject('');
+                setReplyMessage('');
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast.error('Kunde inte skicka svar', { description: err.error });
+            }
+        } catch {
+            toast.error('Nätverksfel');
+        } finally {
+            setReplySending(false);
+        }
+    };
 
     if (loading || !claim) {
         return (
@@ -100,24 +138,44 @@ export default function ClaimDetailPage() {
                         <div className="flex items-center gap-3 flex-wrap">
                             <h1 className="text-2xl font-semibold tracking-tight">{claim.debtor_name}</h1>
                             <StatusBadge status={claim.status} />
+                            {claim.paused && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                    ⏸ Pausad — gäldenär har svarat
+                                </span>
+                            )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-0.5">Ärende {claim.id}</p>
                     </div>
                 </div>
                 {claim.status === 'active' && (
                     <div className="flex items-center gap-2 flex-wrap">
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground"
-                            onClick={async () => {
-                                const res = await fetch(`/api/claims/${id}`, {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ action: 'pause' }),
-                                });
-                                if (res.ok) { setClaim({ ...claim, status: 'cancelled' as any }); router.refresh(); }
-                            }}
-                        >
-                            <Pause className="h-4 w-4 mr-2" /> Pausa
-                        </Button>
+                        {claim.paused ? (
+                            <Button variant="ghost" size="sm" className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                onClick={async () => {
+                                    const res = await fetch(`/api/claims/${id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ action: 'resume' }),
+                                    });
+                                    if (res.ok) { setClaim({ ...claim, paused: false }); toast.success('Ärende återupptagit'); }
+                                }}
+                            >
+                                <Play className="h-4 w-4 mr-2" /> Återuppta
+                            </Button>
+                        ) : (
+                            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground"
+                                onClick={async () => {
+                                    const res = await fetch(`/api/claims/${id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ action: 'pause' }),
+                                    });
+                                    if (res.ok) { setClaim({ ...claim, paused: true }); }
+                                }}
+                            >
+                                <Pause className="h-4 w-4 mr-2" /> Pausa
+                            </Button>
+                        )}
                         <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             onClick={async () => {
                                 const res = await fetch(`/api/claims/${id}`, {
@@ -235,6 +293,42 @@ export default function ClaimDetailPage() {
                     </GlassCard>
                 )}
             </div>
+
+            {/* Reply Form */}
+            {claim.status !== 'cancelled' && (
+                <GlassCard className="p-6">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Svara gäldenären</h3>
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            placeholder="Ämnesrad (valfritt)"
+                            value={replySubject}
+                            onChange={e => setReplySubject(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-lg bg-[#ffffff06] border border-[#ffffff10] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors"
+                        />
+                        <textarea
+                            placeholder="Skriv ditt meddelande här..."
+                            value={replyMessage}
+                            onChange={e => setReplyMessage(e.target.value)}
+                            rows={4}
+                            className="w-full px-4 py-2.5 rounded-lg bg-[#ffffff06] border border-[#ffffff10] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors resize-none"
+                        />
+                        <div className="flex justify-between items-center">
+                            <p className="text-xs text-muted-foreground">Skickas via AgentMail till {claim.debtor_email}</p>
+                            <Button
+                                size="sm"
+                                disabled={!replyMessage.trim() || replySending}
+                                onClick={sendReply}
+                                className="gap-2"
+                            >
+                                <Send className="h-4 w-4" />
+                                {replySending ? 'Skickar...' : 'Skicka svar'}
+                            </Button>
+                        </div>
+                    </div>
+                </GlassCard>
+            )}
         </div>
     );
 }
+

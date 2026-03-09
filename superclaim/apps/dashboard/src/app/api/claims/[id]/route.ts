@@ -58,6 +58,7 @@ export async function GET(
             ...(timelineRows || []).map((r: any) => ({
                 step: r.step,
                 channel: r.channel || 'email',
+                direction: r.direction || 'outbound',
                 subject: r.subject || '',
                 body: r.body || '',
                 sentAt: r.created_at,

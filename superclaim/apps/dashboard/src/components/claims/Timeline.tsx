@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
-import { Mail, MessageSquare, Eye, Clock } from 'lucide-react';
+import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft } from 'lucide-react';
 
 interface TimelineEvent {
     step: number;
     channel: 'email' | 'sms';
+    direction?: 'outbound' | 'inbound';
     subject: string;
     body: string;
     sentAt: string;
@@ -24,16 +25,21 @@ export function Timeline({ events }: TimelineProps) {
             <div className="space-y-6">
                 {events.map((event, i) => {
                     const isDraft = event.status === 'draft';
+                    const isInbound = event.direction === 'inbound';
                     return (
                         <div key={i} className="relative flex gap-4 pl-2">
                             {/* Dot */}
                             <div className={cn(
                                 "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
-                                isDraft
-                                    ? "bg-[#1a1810] border-yellow-500/30"
-                                    : "bg-[#0d1a18] border-primary/30"
+                                isInbound
+                                    ? "bg-[#1a1020] border-violet-500/30"
+                                    : isDraft
+                                        ? "bg-[#1a1810] border-yellow-500/30"
+                                        : "bg-[#0d1a18] border-primary/30"
                             )}>
-                                {event.channel === 'email' ? (
+                                {isInbound ? (
+                                    <ArrowDownLeft className="h-4 w-4 text-violet-400" />
+                                ) : event.channel === 'email' ? (
                                     <Mail className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-primary")} />
                                 ) : (
                                     <MessageSquare className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-primary")} />
@@ -43,21 +49,30 @@ export function Timeline({ events }: TimelineProps) {
                             {/* Content */}
                             <div className={cn(
                                 "flex-1 rounded-xl border p-4 transition-colors",
-                                isDraft
-                                    ? "bg-yellow-500/5 border-yellow-500/15 hover:border-yellow-500/30"
-                                    : "bg-[#122220]/60 border-[#ffffff08] hover:border-primary/20"
+                                isInbound
+                                    ? "bg-violet-500/5 border-violet-500/15 hover:border-violet-500/30"
+                                    : isDraft
+                                        ? "bg-yellow-500/5 border-yellow-500/15 hover:border-yellow-500/30"
+                                        : "bg-[#122220]/60 border-[#ffffff08] hover:border-primary/20"
                             )}>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-medium">Steg {event.step}</span>
                                         <span className={cn(
                                             "text-xs px-2 py-0.5 rounded-full border",
-                                            isDraft
-                                                ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                                                : "bg-primary/10 text-primary border-primary/20"
+                                            isInbound
+                                                ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
+                                                : isDraft
+                                                    ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                                                    : "bg-primary/10 text-primary border-primary/20"
                                         )}>
-                                            {event.channel === 'email' ? 'E-post' : 'SMS'}
+                                            {isInbound ? 'Svar' : event.channel === 'email' ? 'E-post' : 'SMS'}
                                         </span>
+                                        {isInbound && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400/80 border border-violet-500/20">
+                                                Inkommande från gäldenär
+                                            </span>
+                                        )}
                                         {isDraft && (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400/80 border border-yellow-500/20">
                                                 Utkast — väntar på godkännande
@@ -74,7 +89,11 @@ export function Timeline({ events }: TimelineProps) {
 
                                 {/* Status indicators */}
                                 <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[#ffffff08]">
-                                    {isDraft ? (
+                                    {isInbound ? (
+                                        <span className="flex items-center gap-1.5 text-xs text-violet-400">
+                                            <ArrowDownLeft className="h-3 w-3" /> Mottaget svar
+                                        </span>
+                                    ) : isDraft ? (
                                         <span className="flex items-center gap-1.5 text-xs text-yellow-400">
                                             <Clock className="h-3 w-3" /> Väntar på granskning
                                         </span>

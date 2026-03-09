@@ -29,7 +29,7 @@ export async function generateCollectionEmail(params: {
     const userPrompt = buildUserPrompt(params)
 
     const response = await getClient().messages.create({
-        model: 'claude-haiku-4-5-20250315',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         system: SYSTEM_PROMPT,
         messages: [
@@ -70,7 +70,7 @@ export async function generateCollectionSms(params: {
     const userPrompt = buildSmsUserPrompt(params)
 
     const response = await getClient().messages.create({
-        model: 'claude-haiku-4-5-20250315',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 512,
         system: SMS_SYSTEM_PROMPT,
         messages: [

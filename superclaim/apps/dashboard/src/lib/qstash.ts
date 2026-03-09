@@ -67,7 +67,7 @@ export const QSTASH_SCHEDULES: QStashSchedule[] = [
     {
         scheduleId: 'fortnox-sync-payments',
         destination: '/api/fortnox/sync-payments',
-        cron: '*/15 * * * *',   // Var 15:e minut
+        cron: '*/5 7-16 * * *',   // Var 5:e minut, 08:00–16:55 svensk tid (UTC+1)
         description: 'Synka Fortnox-betalningar',
     },
     {

@@ -294,8 +294,8 @@ export default function ClaimDetailPage() {
                 )}
             </div>
 
-            {/* Reply Form */}
-            {claim.status !== 'cancelled' && (
+            {/* Reply Form — visas bara om gäldenären har svarat */}
+            {claim.status !== 'cancelled' && timeline.some(e => e.direction === 'inbound') && (
                 <GlassCard className="p-6">
                     <h3 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Svara gäldenären</h3>
                     <div className="space-y-3">

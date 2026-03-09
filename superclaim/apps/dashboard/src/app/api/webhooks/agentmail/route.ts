@@ -26,16 +26,31 @@ export async function POST(request: Request) {
                 return NextResponse.json({ message: 'No thread_id, skipping' })
             }
 
-            // Find the claim associated with this thread
+            // Find the claim by looking up which communication has this thread
+            const { data: comm } = await supabaseAdmin
+                .from('claim_communications')
+                .select('claim_id, org_id')
+                .eq('agentmail_thread_id', threadId)
+                .eq('direction', 'outbound')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+
+            if (!comm) {
+                console.warn(`[Webhook] No communication found for thread ${threadId}`)
+                return NextResponse.json({ message: 'No matching communication' })
+            }
+
+            // Get the claim details
             const { data: claim } = await supabaseAdmin
                 .from('claims')
                 .select('id, org_id, current_step, debtor_name, status')
-                .eq('agentmail_thread_id', threadId)
+                .eq('id', comm.claim_id)
                 .single()
 
             if (!claim) {
-                console.warn(`[Webhook] No claim found for thread ${threadId}`)
-                return NextResponse.json({ message: 'No matching claim' })
+                console.warn(`[Webhook] Claim ${comm.claim_id} not found`)
+                return NextResponse.json({ message: 'Claim not found' })
             }
 
             // 1. Log the inbound communication

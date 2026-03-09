@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runAgentForAllOrgs } from '@/lib/agent/engine'
+import { verifyQStashRequest } from '@/lib/qstash'
 
 /**
  * GET /api/agent/run
- * Triggered by Vercel Cron at 06:00 UTC every day.
- * Vercel Cron sends GET requests with Authorization: Bearer <CRON_SECRET>.
+ * Triggered by Vercel Cron or QStash.
  */
 export async function GET(request: NextRequest) {
     try {
         const cronSecret = process.env.CRON_SECRET
+        const isQStash = await verifyQStashRequest(request)
 
-        // Validate cron secret in production
+        // Validate either cron secret or QStash signature
         if (cronSecret) {
             const authHeader = request.headers.get('authorization')
-            if (authHeader !== `Bearer ${cronSecret}`) {
-                console.error('[Agent Cron] Unauthorized — invalid or missing CRON_SECRET')
+            if (authHeader !== `Bearer ${cronSecret}` && !isQStash) {
+                console.error('[Agent Cron] Unauthorized — invalid credentials')
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
             }
+        } else if (!isQStash) {
+            return NextResponse.json({ error: 'No auth configured' }, { status: 401 })
         }
 
         console.log('[Agent Cron] Starting run at', new Date().toISOString())

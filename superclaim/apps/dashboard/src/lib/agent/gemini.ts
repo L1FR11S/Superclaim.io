@@ -1,13 +1,12 @@
-import { GoogleGenAI } from '@google/genai'
+import Anthropic from '@anthropic-ai/sdk'
 import { SYSTEM_PROMPT, SMS_SYSTEM_PROMPT, buildUserPrompt, buildSmsUserPrompt } from './prompt'
 
-let _ai: GoogleGenAI | null = null
-function getAI() {
-    if (!_ai) _ai = new GoogleGenAI({
-        apiKey: process.env.GEMINI_API_KEY!,
-        httpOptions: { apiVersion: 'v1beta' },
+let _client: Anthropic | null = null
+function getClient() {
+    if (!_client) _client = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY!,
     })
-    return _ai
+    return _client
 }
 
 export interface GeneratedEmail {
@@ -16,7 +15,7 @@ export interface GeneratedEmail {
 }
 
 /**
- * Generate a collection email using Google Gemini
+ * Generate a collection email using Claude Haiku 4.5
  */
 export async function generateCollectionEmail(params: {
     debtorName: string
@@ -29,26 +28,28 @@ export async function generateCollectionEmail(params: {
 }): Promise<GeneratedEmail> {
     const userPrompt = buildUserPrompt(params)
 
-    const response = await getAI().models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: userPrompt,
-        config: {
-            systemInstruction: SYSTEM_PROMPT,
-            temperature: 0.4,
-            responseMimeType: 'application/json',
-        },
+    const response = await getClient().messages.create({
+        model: 'claude-haiku-4-5-20250315',
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        messages: [
+            { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.4,
     })
 
-    const text = response.text ?? ''
+    const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
 
     try {
-        const parsed = JSON.parse(text)
+        // Strip markdown code fences if present
+        const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
+        const parsed = JSON.parse(cleaned)
         return {
             subject: parsed.subject || `Påminnelse: Faktura ${params.invoiceNumber}`,
             body: parsed.body || '',
         }
     } catch {
-        console.error('[Gemini] Failed to parse JSON response:', text)
+        console.error('[Claude] Failed to parse JSON response:', text)
         return {
             subject: `Påminnelse: Faktura ${params.invoiceNumber} — ${params.amount.toLocaleString('sv-SE')} ${params.currency}`,
             body: text,
@@ -57,7 +58,7 @@ export async function generateCollectionEmail(params: {
 }
 
 /**
- * Generate a collection SMS using Google Gemini
+ * Generate a collection SMS using Claude Haiku 4.5
  */
 export async function generateCollectionSms(params: {
     debtorName: string
@@ -68,23 +69,24 @@ export async function generateCollectionSms(params: {
 }): Promise<string> {
     const userPrompt = buildSmsUserPrompt(params)
 
-    const response = await getAI().models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: userPrompt,
-        config: {
-            systemInstruction: SMS_SYSTEM_PROMPT,
-            temperature: 0.3,
-            responseMimeType: 'application/json',
-        },
+    const response = await getClient().messages.create({
+        model: 'claude-haiku-4-5-20250315',
+        max_tokens: 512,
+        system: SMS_SYSTEM_PROMPT,
+        messages: [
+            { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3,
     })
 
-    const text = response.text ?? ''
+    const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
 
     try {
-        const parsed = JSON.parse(text)
+        const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
+        const parsed = JSON.parse(cleaned)
         return parsed.body || `Påminnelse: Du har en obetald faktura på ${params.amount.toLocaleString('sv-SE')} ${params.currency}. Vänligen betala snarast.`
     } catch {
-        console.error('[Gemini] Failed to parse SMS JSON response:', text)
+        console.error('[Claude] Failed to parse SMS JSON response:', text)
         return text || `Påminnelse: Du har en obetald faktura på ${params.amount.toLocaleString('sv-SE')} ${params.currency}. Vänligen betala snarast.`
     }
 }

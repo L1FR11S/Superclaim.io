@@ -1,19 +1,21 @@
 import { createAdminClient } from '@/utils/supabase/admin'
 import { refreshAccessToken } from '@/lib/fortnox/fortnox'
 import { NextResponse } from 'next/server'
+import { verifyQStashRequest } from '@/lib/qstash'
 
 /**
  * POST /api/fortnox/refresh-all
  *
- * Vercel Cron Job — körs dagligen och refreshar tokens
- * för alla orgs vars token är äldre än 20 dagar.
- *
- * Skyddad av CRON_SECRET-headern.
+ * Cron Job — refreshar Fortnox OAuth-tokens.
+ * Accepterar anrop via:
+ *   1. Vercel Cron (x-cron-secret header)
+ *   2. QStash (upstash-signature header)
  */
 export async function POST(req: Request) {
-    // Verifiera att anropet kommer från Vercel Cron (eller manuell test)
-    const secret = req.headers.get('x-cron-secret')
-    if (secret !== process.env.CRON_SECRET) {
+    const cronSecret = req.headers.get('x-cron-secret')
+    const isQStash = await verifyQStashRequest(req)
+
+    if (cronSecret !== process.env.CRON_SECRET && !isQStash) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

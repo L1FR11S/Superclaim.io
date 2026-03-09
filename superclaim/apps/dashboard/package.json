@@ -9,10 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1003.0",
     "@google/genai": "^1.43.0",
     "@sentry/nextjs": "^10.42.0",
     "@supabase/ssr": "^0.8.0",
+    "@upstash/qstash": "^2.9.0",
     "@xyflow/react": "^12.10.1",
     "agentmail": "^0.3.7",
     "canvas-confetti": "^1.9.4",

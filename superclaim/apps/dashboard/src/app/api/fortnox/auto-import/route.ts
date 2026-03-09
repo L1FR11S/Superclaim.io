@@ -1,18 +1,21 @@
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
 import { fetchOverdueInvoices, fetchCustomer } from '@/lib/fortnox/fortnox'
+import { verifyQStashRequest } from '@/lib/qstash'
 
 /**
  * POST /api/fortnox/auto-import
  *
- * Vercel Cron Job — körs dagligen och importerar förfallna fakturor
- * från Fortnox för alla org med fortnox_auto_import = true.
- *
- * Skyddad av CRON_SECRET-headern.
+ * Cron Job — importerar förfallna fakturor från Fortnox.
+ * Accepterar anrop via:
+ *   1. Vercel Cron (x-cron-secret header)
+ *   2. QStash (upstash-signature header)
  */
 export async function POST(req: Request) {
-    const secret = req.headers.get('x-cron-secret')
-    if (secret !== process.env.CRON_SECRET) {
+    const cronSecret = req.headers.get('x-cron-secret')
+    const isQStash = await verifyQStashRequest(req)
+
+    if (cronSecret !== process.env.CRON_SECRET && !isQStash) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

@@ -1,20 +1,2 @@
 {
-  "crons": [
-    {
-      "path": "/api/agent/run",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/fortnox/refresh-all",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/fortnox/auto-import",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/fortnox/sync-payments",
-      "schedule": "0 8 * * *"
-    }
-  ]
 }

@@ -15,14 +15,21 @@ export async function POST(request: Request) {
         const payload = await request.json()
         const eventType = payload.event_type || payload.type
 
+        // Debug: logga hela payloaden så vi kan se formatet
+        console.info('[Webhook] Received:', JSON.stringify(payload).slice(0, 500))
+
         if (eventType === 'message.received') {
-            const message = payload.data || payload
+            // AgentMail skickar data under "message", fallback till "data" eller root
+            const message = payload.message || payload.data || payload
             const threadId = message.thread_id
-            const body = message.text || message.body || ''
+            const body = message.text || message.body || message.text_body || ''
             const subject = message.subject || ''
-            const from = message.from || ''
+            const from = message.from_ || message.from || ''
+
+            console.info(`[Webhook] Parsed: thread_id=${threadId}, from=${from}, subject=${subject}`)
 
             if (!threadId) {
+                console.warn('[Webhook] No thread_id found in payload')
                 return NextResponse.json({ message: 'No thread_id, skipping' })
             }
 

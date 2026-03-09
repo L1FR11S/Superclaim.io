@@ -85,7 +85,7 @@ export const QSTASH_SCHEDULES: QStashSchedule[] = [
     {
         scheduleId: 'agent-run',
         destination: '/api/agent/run',
-        cron: '0 6 * * *',       // Dagligen kl 06:00
+        cron: '*/5 7-16 * * *',   // Var 5:e minut, 08:00–16:55 svensk tid (UTC+1)
         description: 'Kör AI-agenten på alla aktiva ärenden',
     },
 ]

@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, Download, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Search, Filter, Download, Plus, RefreshCw, Trash2, MessageSquareReply } from 'lucide-react';
 import { toast } from 'sonner';
 import { NewClaimModal } from '@/components/claims/NewClaimModal';
 
@@ -19,6 +19,8 @@ interface Claim {
     due_date: string;
     current_step: number;
     status: 'active' | 'paid' | 'escalated' | 'cancelled';
+    paused?: boolean;
+    has_reply?: boolean;
     days_overdue?: number;
 }
 
@@ -266,10 +268,10 @@ export default function ClaimsListPage() {
                                 <div
                                     onClick={toggleAll}
                                     className={`w-[18px] h-[18px] rounded-[4px] border-2 flex items-center justify-center cursor-pointer transition-all select-none ${allFilteredSelected
-                                            ? 'bg-primary border-primary'
-                                            : someButNotAll
-                                                ? 'bg-primary/20 border-primary'
-                                                : 'border-[#3d5252] hover:border-primary/60 bg-[#1a2f2e]'
+                                        ? 'bg-primary border-primary'
+                                        : someButNotAll
+                                            ? 'bg-primary/20 border-primary'
+                                            : 'border-[#3d5252] hover:border-primary/60 bg-[#1a2f2e]'
                                         }`}
                                     aria-label="Markera alla"
                                     role="checkbox"
@@ -309,8 +311,8 @@ export default function ClaimsListPage() {
                                 >
                                     <div
                                         className={`w-[18px] h-[18px] rounded-[4px] border-2 flex items-center justify-center cursor-pointer transition-all select-none ${selected.has(claim.id)
-                                                ? 'bg-primary border-primary'
-                                                : 'border-[#3d5252] hover:border-primary/60 bg-[#1a2f2e]'
+                                            ? 'bg-primary border-primary'
+                                            : 'border-[#3d5252] hover:border-primary/60 bg-[#1a2f2e]'
                                             }`}
                                         role="checkbox"
                                         aria-label={`Markera ${claim.debtor_name}`}
@@ -338,7 +340,14 @@ export default function ClaimsListPage() {
                                     ) : '-'}
                                 </TableCell>
                                 <TableCell>
-                                    <StatusBadge status={claim.status} />
+                                    <div className="flex items-center gap-2">
+                                        <StatusBadge status={claim.status} />
+                                        {(claim.paused || claim.has_reply) && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                                <MessageSquareReply className="h-3 w-3" /> Svar
+                                            </span>
+                                        )}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}

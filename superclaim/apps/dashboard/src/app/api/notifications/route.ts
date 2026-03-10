@@ -113,3 +113,44 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: err.message }, { status: 500 })
     }
 }
+
+/**
+ * DELETE /api/notifications — radera notiser permanent
+ * Body: { ids: string[] } eller { all: true }
+ */
+export async function DELETE(request: Request) {
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+        const admin = createAdminClient()
+
+        const { data: org } = await admin
+            .from('organizations')
+            .select('id')
+            .eq('email', user.email)
+            .single()
+        if (!org) return NextResponse.json({ error: 'Org not found' }, { status: 404 })
+
+        const body = await request.json()
+
+        if (body.all) {
+            await admin
+                .from('notifications')
+                .delete()
+                .eq('org_id', org.id)
+        } else if (body.ids?.length > 0) {
+            await admin
+                .from('notifications')
+                .delete()
+                .eq('org_id', org.id)
+                .in('id', body.ids)
+        }
+
+        return NextResponse.json({ success: true })
+    } catch (err: any) {
+        console.error('[Notifications DELETE Error]', err.message)
+        return NextResponse.json({ error: err.message }, { status: 500 })
+    }
+}

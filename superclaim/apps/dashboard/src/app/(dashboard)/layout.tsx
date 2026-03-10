@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow, FlaskConical, Check, X } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow, FlaskConical, Check, X, Trash2 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -156,6 +156,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUnreadCount(0);
         await fetch('/api/notifications', {
             method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ all: true }),
+        });
+    };
+
+    const clearNotification = async (id: string) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        setUnreadCount(prev => {
+            const wasUnread = notifications.find(n => n.id === id && !n.read);
+            return wasUnread ? Math.max(0, prev - 1) : prev;
+        });
+        await fetch('/api/notifications', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: [id] }),
+        });
+    };
+
+    const clearAllNotifications = async () => {
+        setNotifications([]);
+        setUnreadCount(0);
+        await fetch('/api/notifications', {
+            method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ all: true }),
         });
@@ -397,6 +420,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         <Check className="h-3 w-3" /> Markera alla
                                     </button>
                                 )}
+                                {notifications.length > 0 && (
+                                    <button
+                                        onClick={clearAllNotifications}
+                                        className="text-xs text-red-400/70 hover:text-red-400 transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-500/10"
+                                    >
+                                        <Trash2 className="h-3 w-3" /> Rensa alla
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => setShowAllNotifications(false)}
                                     className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[#ffffff08] transition-colors"
@@ -422,7 +453,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         setShowAllNotifications(false);
                                     }}
                                     className={cn(
-                                        "flex items-start gap-3 px-5 py-4 hover:bg-primary/5 transition-colors border-b border-[#ffffff05] last:border-0",
+                                        "group flex items-start gap-3 px-5 py-4 hover:bg-primary/5 transition-colors border-b border-[#ffffff05] last:border-0",
                                         !n.read && "bg-primary/[0.03]"
                                     )}
                                 >
@@ -448,9 +479,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                             })}
                                         </p>
                                     </div>
-                                    {!n.read && (
-                                        <span className="text-[10px] text-primary/60 mt-1 shrink-0">Ny</span>
-                                    )}
+                                    <button
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearNotification(n.id); }}
+                                        className="p-1 rounded-md text-muted-foreground/40 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                                        title="Ta bort"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
                                 </Link>
                             ))}
                         </div>

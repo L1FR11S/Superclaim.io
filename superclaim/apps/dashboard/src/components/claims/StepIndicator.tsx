@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
     Zap, Mail, MessageSquare, AlertTriangle, Flag, Check,
-    Clock,
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────── */
@@ -41,14 +40,14 @@ interface StepIndicatorProps {
     timeline?: TimelineEvent[];
 }
 
-/* ─── Icon + color config ────────────────────────────── */
+/* ─── Icon config ────────────────────────────────────── */
 
-const stepConfig: Record<string, { icon: typeof Zap; color: string }> = {
-    trigger: { icon: Zap, color: 'text-emerald-400' },
-    email: { icon: Mail, color: 'text-cyan-400' },
-    sms: { icon: MessageSquare, color: 'text-violet-400' },
-    escalate: { icon: AlertTriangle, color: 'text-red-400' },
-    end: { icon: Flag, color: 'text-green-400' },
+const stepIcons: Record<string, typeof Zap> = {
+    trigger: Zap,
+    email: Mail,
+    sms: MessageSquare,
+    escalate: AlertTriangle,
+    end: Flag,
 };
 
 /* ─── Fallback steps ─────────────────────────────────── */
@@ -117,6 +116,13 @@ function collapseDelays(nodes: FlowNode[]): DisplayStep[] {
 
 /* ─── Component ──────────────────────────────────────── */
 
+/**
+ * current_step mapping:
+ * Engine increments current_step for each email/sms node executed (not for trigger/delay).
+ * Display index 0 = trigger (always complete when current_step >= 0).
+ * Display index N (N>=1) is an action node → completed when current_step >= N.
+ * Current (active) step = the first display step where current_step < N.
+ */
 export function StepIndicator({ currentStep, timeline = [] }: StepIndicatorProps) {
     const [steps, setSteps] = useState<DisplayStep[]>(fallbackSteps);
 
@@ -134,109 +140,114 @@ export function StepIndicator({ currentStep, timeline = [] }: StepIndicatorProps
             .catch(() => { });
     }, []);
 
-    /* tooltip helpers */
-    const getCompletedInfo = (stepIndex: number) => {
-        const events = timeline.filter(e => e.step === stepIndex && e.direction === 'outbound');
+    /* Map display index to engine step:
+       Display 0 = trigger (always done, engine step 0)
+       Display 1 = first action (done when current_step >= 1)
+       Display 2 = second action (done when current_step >= 2)
+       etc.
+    */
+    const isStepCompleted = (displayIndex: number) => {
+        if (displayIndex === 0) return true; // trigger always done
+        return currentStep >= displayIndex;
+    };
+
+    const isStepCurrent = (displayIndex: number) => {
+        if (displayIndex === 0) return false; // trigger is never "current"
+        return currentStep === displayIndex - 1;
+    };
+
+    /* Tooltip helpers */
+    const getCompletedInfo = (displayIndex: number) => {
+        // Engine step number = displayIndex (action nodes use claim.current_step + 1)
+        const events = timeline.filter(e => e.step === displayIndex && e.direction === 'outbound');
         if (events.length === 0) return null;
         const latest = events[events.length - 1];
         return { subject: latest.subject, date: latest.sentAt, channel: latest.channel };
     };
 
-    const getFutureInfo = (step: DisplayStep) => {
-        if (!step.delayDays) return null;
-        return `Väntar — skickas om ${step.delayDays} dagar`;
-    };
-
-    /* Calculate progress percentage for the continuous line */
-    const progressPercent = steps.length > 1
-        ? (currentStep / (steps.length - 1)) * 100
-        : 0;
+    /* Progress line width */
+    const totalSteps = steps.length - 1; // exclude trigger from count
+    const completedActions = Math.min(currentStep, totalSteps);
+    const progressPercent = totalSteps > 0 ? (completedActions / totalSteps) * 100 : 0;
 
     return (
-        <div className="relative w-full">
+        <div className="relative w-full pt-1 pb-1">
             {/* ── Continuous background line ── */}
-            <div className="absolute top-4 left-4 right-4 h-[2px] bg-[#ffffff08]" />
-            {/* ── Active progress line (glow) ── */}
+            <div className="absolute top-[22px] left-[16px] right-[16px] h-[2px] bg-[#ffffff08] rounded-full" />
+            {/* ── Active glow progress ── */}
             <div
-                className="absolute top-4 left-4 h-[2px] bg-primary shadow-[0_0_8px_rgba(0,229,204,0.3)] transition-all duration-700 ease-out"
-                style={{ width: `calc(${Math.min(progressPercent, 100)}% - 32px)` }}
+                className="absolute top-[22px] left-[16px] h-[2px] rounded-full bg-primary transition-all duration-700 ease-out"
+                style={{
+                    width: `calc((100% - 32px) * ${Math.min(progressPercent, 100) / 100})`,
+                    boxShadow: '0 0 8px rgba(0,229,204,0.4), 0 0 2px rgba(0,229,204,0.6)',
+                }}
             />
 
-            {/* ── Steps ── */}
-            <div className="relative flex items-start w-full">
+            {/* ── Step dots + labels ── */}
+            <div className="relative flex w-full">
                 {steps.map((step, i) => {
-                    const isCompleted = i < currentStep;
-                    const isCurrent = i === currentStep;
-                    const isFuture = i > currentStep;
-                    const isEscalated = step.type === 'escalate' && isCompleted;
-                    const config = stepConfig[step.type] || stepConfig.email;
-                    const Icon = config.icon;
-
-                    const completedInfo = isCompleted ? getCompletedInfo(i) : null;
-                    const futureInfo = isFuture ? getFutureInfo(step) : null;
-                    const hasTooltip = completedInfo || futureInfo || (isCurrent && step.delayDays);
+                    const completed = isStepCompleted(i);
+                    const current = isStepCurrent(i);
+                    const future = !completed && !current;
+                    const isEscalated = step.type === 'escalate' && completed;
+                    const Icon = stepIcons[step.type] || Mail;
+                    const completedInfo = completed && i > 0 ? getCompletedInfo(i) : null;
 
                     return (
                         <div key={i} className="flex-1 flex flex-col items-center group relative">
-                            {/* Delay badge above the line */}
-                            {step.delayDays && i > 0 && (
-                                <div className="h-3 flex items-center justify-center mb-0.5">
-                                    <span className={cn(
-                                        "flex items-center gap-0.5 text-[8px] px-1.5 py-0.5 rounded-full leading-none font-medium",
-                                        (isCompleted || isCurrent)
-                                            ? "text-primary/70"
-                                            : "text-muted-foreground/30"
-                                    )}>
-                                        <Clock className="h-2 w-2" />
-                                        {step.delayDays}d
-                                    </span>
-                                </div>
-                            )}
-                            {!step.delayDays && i > 0 && <div className="h-3 mb-0.5" />}
-                            {i === 0 && <div className="h-3 mb-0.5" />}
-
-                            {/* Step dot with icon */}
+                            {/* Dot */}
                             <div className={cn(
-                                "relative h-8 w-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 z-10",
-                                isCompleted && !isEscalated && "bg-[#0a1a18] border-primary",
-                                isCompleted && isEscalated && "bg-[#0a1a18] border-amber-500",
-                                isCurrent && "border-primary bg-[#0a1a18] shadow-[0_0_16px_rgba(0,229,204,0.4)] animate-[pulse-glow_2s_ease-in-out_infinite]",
-                                isFuture && "border-[#ffffff12] bg-[#0a1a18]"
+                                "h-[18px] w-[18px] rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 z-10",
+                                completed && !isEscalated && "bg-primary border-primary",
+                                completed && isEscalated && "bg-amber-500 border-amber-500",
+                                current && "border-primary bg-[#0a1a18] shadow-[0_0_12px_rgba(0,229,204,0.5)] animate-[pulse-glow_2s_ease-in-out_infinite]",
+                                future && "border-[#ffffff15] bg-[#0a1a18]"
                             )}>
-                                {isCompleted ? (
-                                    <Check className={cn("h-3.5 w-3.5", isEscalated ? "text-amber-400" : "text-primary")} />
+                                {completed ? (
+                                    <Check className={cn("h-2.5 w-2.5", isEscalated ? "text-[#0a1a18]" : "text-[#0a1a18]")} />
                                 ) : (
                                     <Icon className={cn(
-                                        "h-3.5 w-3.5 transition-colors",
-                                        isCurrent ? config.color : "text-muted-foreground/30"
+                                        "h-2.5 w-2.5",
+                                        current ? "text-primary" : "text-[#ffffff20]"
                                     )} />
                                 )}
                             </div>
 
                             {/* Label */}
                             <span className={cn(
-                                "text-[10px] font-medium tracking-wide uppercase transition-colors text-center leading-tight max-w-[90px] mt-2.5",
-                                isCompleted && "text-primary",
-                                isCurrent && "text-primary",
-                                isFuture && "text-muted-foreground/40"
+                                "text-[9px] font-medium tracking-wider uppercase transition-colors text-center leading-tight mt-2 max-w-[80px]",
+                                completed && "text-primary",
+                                current && "text-primary",
+                                future && "text-muted-foreground/30"
                             )}>
                                 {step.label}
                             </span>
 
-                            {/* Date under completed steps */}
+                            {/* Delay info */}
+                            {step.delayDays && i > 0 && (
+                                <span className={cn(
+                                    "text-[8px] mt-0.5",
+                                    (completed || current) ? "text-primary/40" : "text-muted-foreground/20"
+                                )}>
+                                    {step.delayDays} dagar
+                                </span>
+                            )}
+
+                            {/* Date for completed steps */}
                             {completedInfo && (
-                                <span className="text-[9px] text-primary/50 mt-0.5">
+                                <span className="text-[8px] text-primary/40 mt-0.5">
                                     {completedInfo.date}
                                 </span>
                             )}
 
                             {/* Hover tooltip */}
-                            {hasTooltip && (
-                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all duration-200 pointer-events-none z-50">
-                                    <div className="bg-[#0a1a18]/95 backdrop-blur-xl border border-primary/10 rounded-xl px-3.5 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-center min-w-[160px]">
+                            {(completedInfo || (future && step.delayDays) || (current && step.delayDays)) && (
+                                <div className="absolute top-full mt-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all duration-200 pointer-events-none z-50">
+                                    <div className="w-2 h-2 bg-[#0a1a18]/95 border-t border-l border-primary/10 rotate-45 mx-auto -mb-1 relative z-10" />
+                                    <div className="bg-[#0a1a18]/95 backdrop-blur-xl border border-primary/10 rounded-xl px-3 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-center min-w-[140px]">
                                         {completedInfo ? (
                                             <>
-                                                <p className="text-xs font-medium text-foreground">{completedInfo.subject}</p>
+                                                <p className="text-[11px] font-medium text-foreground">{completedInfo.subject}</p>
                                                 <p className="text-[10px] text-muted-foreground mt-1 flex items-center justify-center gap-1">
                                                     {completedInfo.channel === 'sms'
                                                         ? <MessageSquare className="h-2.5 w-2.5" />
@@ -245,13 +256,12 @@ export function StepIndicator({ currentStep, timeline = [] }: StepIndicatorProps
                                                     Skickad {completedInfo.date}
                                                 </p>
                                             </>
-                                        ) : futureInfo ? (
-                                            <p className="text-[11px] text-muted-foreground/70">{futureInfo}</p>
-                                        ) : isCurrent && step.delayDays ? (
-                                            <p className="text-[11px] text-primary/70">Pågående — väntar {step.delayDays} dagar</p>
-                                        ) : null}
+                                        ) : current ? (
+                                            <p className="text-[10px] text-primary/70">Pågående — väntar {step.delayDays} dagar</p>
+                                        ) : (
+                                            <p className="text-[10px] text-muted-foreground/60">Väntar — skickas om {step.delayDays} dagar</p>
+                                        )}
                                     </div>
-                                    <div className="w-2 h-2 bg-[#0a1a18]/95 border-b border-r border-primary/10 rotate-45 mx-auto -mt-1" />
                                 </div>
                             )}
                         </div>
@@ -261,4 +271,3 @@ export function StepIndicator({ currentStep, timeline = [] }: StepIndicatorProps
         </div>
     );
 }
-

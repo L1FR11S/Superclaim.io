@@ -266,11 +266,15 @@ async function executeNode(
                         const smsResult = await sendSms({
                             from: smsFrom, to: claim.debtor_phone, message: smsMessage,
                         })
-                        await supabaseAdmin.from('claim_communications').insert({
+                        const { error: smsInsertErr } = await supabaseAdmin.from('claim_communications').insert({
                             claim_id: claim.id, org_id: claim.org_id,
                             step: smsStep, channel: 'sms', direction: 'outbound',
                             body: smsMessage, metadata: { elks_id: smsResult.id, cost: smsResult.cost },
                         })
+                        if (smsInsertErr) {
+                            console.error(`[ENGINE] SMS loggning misslyckades för ${claim.debtor_name}:`, smsInsertErr.message)
+                            result.errors.push(`SMS logg: ${smsInsertErr.message}`)
+                        }
                         result.smsSent++
                         result.actions.push(`📱 SMS skickat (steg ${smsStep}) → ${claim.debtor_phone}`)
                     }

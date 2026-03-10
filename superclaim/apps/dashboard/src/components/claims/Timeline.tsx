@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from "@/lib/utils";
-import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft, Reply, Send, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft, Reply, Send, Loader2, ChevronDown, ChevronUp, Pencil, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { stripEmailQuote } from '@/lib/utils/stripEmailQuote';
@@ -17,17 +17,23 @@ interface TimelineEvent {
     openedAt?: string | null;
     status?: 'sent' | 'draft';
     agentmail_message_id?: string | null;
+    draftId?: string;
+    draftType?: 'email' | 'sms';
 }
 
 interface TimelineProps {
     events: TimelineEvent[];
     claimId?: string;
     onReplySent?: (reply: TimelineEvent) => void;
+    onDraftAction?: (draftId: string, action: 'approve' | 'reject' | 'edit', draftType: 'email' | 'sms', newBody?: string) => Promise<void>;
 }
 
-export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
+export function Timeline({ events, claimId, onReplySent, onDraftAction }: TimelineProps) {
     const [replyingTo, setReplyingTo] = useState<number | null>(null);
     const [replyText, setReplyText] = useState('');
+    const [editingDraft, setEditingDraft] = useState<number | null>(null);
+    const [editText, setEditText] = useState('');
+    const [draftLoading, setDraftLoading] = useState<string | null>(null);
     const [sending, setSending] = useState(false);
 
     const handleSendReply = async (event: TimelineEvent, index: number) => {
@@ -208,17 +214,107 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                                             </span>
                                         )}
                                     </div>
+
+                                    {/* Draft action buttons */}
+                                    {isDraft && event.draftId && onDraftAction && (
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={!!draftLoading}
+                                                onClick={() => { setEditingDraft(i); setEditText(event.body); }}
+                                                className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
+                                            >
+                                                <Pencil className="h-3 w-3" /> Redigera
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={!!draftLoading}
+                                                onClick={async () => {
+                                                    setDraftLoading(event.draftId!);
+                                                    await onDraftAction(event.draftId!, 'reject', event.draftType || event.channel);
+                                                    setDraftLoading(null);
+                                                }}
+                                                className="h-7 text-xs text-red-400/70 hover:text-red-400 hover:bg-red-500/10 gap-1"
+                                            >
+                                                <XCircle className="h-3 w-3" /> Avslå
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                disabled={!!draftLoading}
+                                                onClick={async () => {
+                                                    setDraftLoading(event.draftId!);
+                                                    await onDraftAction(event.draftId!, 'approve', event.draftType || event.channel);
+                                                    setDraftLoading(null);
+                                                }}
+                                                className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+                                            >
+                                                {draftLoading === event.draftId ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <CheckCircle className="h-3 w-3" />
+                                                )}
+                                                Godkänn & skicka
+                                            </Button>
+                                        </div>
+                                    )}
+
                                     {isInbound && claimId && !isReplying && (
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setReplyingTo(i)}
-                                            className="h-7 text-xs text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 gap-1.5"
+                                            className="h-7 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-1.5"
                                         >
                                             <Reply className="h-3.5 w-3.5" /> Svara
                                         </Button>
                                     )}
                                 </div>
+
+                                {/* Draft edit form */}
+                                {editingDraft === i && event.draftId && (
+                                    <div className="mt-3 pt-3 border-t border-yellow-500/15 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <textarea
+                                            autoFocus
+                                            value={editText}
+                                            onChange={e => setEditText(e.target.value)}
+                                            rows={4}
+                                            className="w-full px-3 py-2 rounded-lg bg-[#ffffff06] border border-yellow-500/20 text-sm text-foreground focus:outline-none focus:border-yellow-500/40 transition-colors resize-none"
+                                        />
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-muted-foreground">{editText.length} tecken</span>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setEditingDraft(null)}
+                                                    className="h-7 text-xs text-muted-foreground"
+                                                >
+                                                    Avbryt
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    disabled={!editText.trim() || !!draftLoading}
+                                                    onClick={async () => {
+                                                        setDraftLoading(event.draftId!);
+                                                        await onDraftAction?.(event.draftId!, 'edit', event.draftType || event.channel, editText);
+                                                        setEditingDraft(null);
+                                                        setDraftLoading(null);
+                                                    }}
+                                                    className="h-7 text-xs gap-1 bg-yellow-600 hover:bg-yellow-500 text-white"
+                                                >
+                                                    {draftLoading === event.draftId ? (
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    ) : (
+                                                        <Pencil className="h-3 w-3" />
+                                                    )}
+                                                    Spara
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Inline reply form */}
                                 {isReplying && (

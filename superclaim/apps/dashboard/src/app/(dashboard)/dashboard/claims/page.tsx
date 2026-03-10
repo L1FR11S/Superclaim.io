@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, Download, Plus, RefreshCw, Trash2, MessageSquareReply } from 'lucide-react';
+import { Search, Filter, Download, Plus, RefreshCw, Trash2, MessageSquareReply, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { NewClaimModal } from '@/components/claims/NewClaimModal';
 
@@ -21,6 +21,7 @@ interface Claim {
     status: 'active' | 'paid' | 'escalated' | 'cancelled';
     paused?: boolean;
     has_reply?: boolean;
+    has_pending_draft?: boolean;
     days_overdue?: number;
 }
 
@@ -345,6 +346,11 @@ export default function ClaimsListPage() {
                                         {claim.has_reply && claim.paused && claim.status === 'active' && (
                                             <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
                                                 <MessageSquareReply className="h-3 w-3" /> Svar
+                                            </span>
+                                        )}
+                                        {claim.has_pending_draft && claim.status === 'active' && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
+                                                <Pencil className="h-3 w-3" /> Utkast
                                             </span>
                                         )}
                                     </div>

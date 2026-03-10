@@ -36,6 +36,9 @@ interface TimelineEvent {
     body: string;
     sentAt: string;
     openedAt?: string | null;
+    draftId?: string;
+    draftType?: 'email' | 'sms';
+    status?: 'sent' | 'draft';
 }
 
 function formatTimelineDate(iso: string): string {
@@ -56,7 +59,7 @@ export default function ClaimDetailPage() {
     const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+    const fetchClaim = () => {
         if (!id) return;
         fetch(`/api/claims/${id}`)
             .then((res) => res.json())
@@ -73,7 +76,31 @@ export default function ClaimDetailPage() {
                 setLoading(false);
             })
             .catch(() => setLoading(false));
-    }, [id]);
+    };
+
+    useEffect(() => { fetchClaim(); }, [id]);
+
+    const handleDraftAction = async (draftId: string, action: 'approve' | 'reject' | 'edit', draftType: 'email' | 'sms', newBody?: string) => {
+        const endpoint = draftType === 'sms' ? '/api/sms-drafts' : '/api/email-drafts';
+        const body: any = { draftId, action };
+        if (action === 'edit' && newBody) body.body = newBody;
+        const res = await fetch(endpoint, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (res.ok) {
+            toast.success(
+                action === 'approve' ? 'Meddelande godkänt & skickat!' :
+                    action === 'reject' ? 'Utkast avslaget' :
+                        'Utkast uppdaterat'
+            );
+            fetchClaim(); // Refresh timeline
+        } else {
+            const err = await res.json().catch(() => ({}));
+            toast.error('Något gick fel', { description: err.error || `HTTP ${res.status}` });
+        }
+    };
 
     if (loading || !claim) {
         return (
@@ -255,6 +282,7 @@ export default function ClaimDetailPage() {
                         events={timeline}
                         claimId={id}
                         onReplySent={(reply) => setTimeline(prev => [...prev, reply])}
+                        onDraftAction={handleDraftAction}
                     />
                 ) : (
                     <GlassCard className="p-12 text-center">

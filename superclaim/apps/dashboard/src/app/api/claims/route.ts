@@ -111,9 +111,30 @@ export async function GET() {
 
         const claimsWithReply = new Set((inboundReplies || []).map(r => r.claim_id))
 
+        // Hämta claim_ids som har pending drafts
+        const { data: pendingEmailDrafts } = await admin
+            .from('email_drafts')
+            .select('claim_id')
+            .eq('org_id', org.id)
+            .eq('status', 'pending')
+            .in('claim_id', claimIds)
+
+        const { data: pendingSmsDrafts } = await admin
+            .from('sms_drafts')
+            .select('claim_id')
+            .eq('org_id', org.id)
+            .eq('status', 'pending')
+            .in('claim_id', claimIds)
+
+        const claimsWithPendingDraft = new Set([
+            ...(pendingEmailDrafts || []).map(r => r.claim_id),
+            ...(pendingSmsDrafts || []).map(r => r.claim_id),
+        ])
+
         const enrichedClaims = allClaims.map(c => ({
             ...c,
             has_reply: claimsWithReply.has(c.id),
+            has_pending_draft: claimsWithPendingDraft.has(c.id),
         }))
 
         return NextResponse.json({

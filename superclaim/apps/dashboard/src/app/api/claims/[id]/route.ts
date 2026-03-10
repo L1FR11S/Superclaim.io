@@ -73,7 +73,9 @@ export async function GET(
                 body: r.body || '',
                 sentAt: r.created_at,
                 openedAt: null,
-                status: r.status === 'sent' ? 'sent' : 'draft',
+                status: r.status === 'sent' ? 'sent' : r.status === 'rejected' ? 'rejected' : 'draft',
+                draftId: r.status === 'pending' ? r.id : undefined,
+                draftType: r.status === 'pending' ? 'email' as const : undefined,
             })),
             ...(smsDraftRows || []).map((r: any) => ({
                 step: r.step,
@@ -82,9 +84,12 @@ export async function GET(
                 body: r.body || '',
                 sentAt: r.created_at,
                 openedAt: null,
-                status: r.status === 'sent' ? 'sent' : 'draft',
+                status: r.status === 'sent' ? 'sent' : r.status === 'rejected' ? 'rejected' : 'draft',
+                draftId: r.status === 'pending' ? r.id : undefined,
+                draftType: r.status === 'pending' ? 'sms' as const : undefined,
             })),
-        ].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime())
+        ].filter(e => e.status !== 'rejected')
+            .sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime())
 
         return NextResponse.json({
             claim: { ...claim, days_overdue: daysOverdue },

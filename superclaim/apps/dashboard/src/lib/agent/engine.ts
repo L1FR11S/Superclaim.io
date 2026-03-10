@@ -192,6 +192,13 @@ async function executeNode(
                     to: claim.debtor_email, subject: email.subject,
                     body: email.body, tone, step, status: 'pending',
                 })
+                // Skapa notis
+                await supabaseAdmin.from('notifications').insert({
+                    org_id: claim.org_id,
+                    type: 'draft',
+                    text: `📝 E-post utkast för ${claim.debtor_name} (steg ${step}) väntar på godkännande`,
+                    href: `/dashboard/claims/${claim.id}`,
+                })
                 result.actions.push(`📝 E-post utkast (steg ${step}): "${email.subject}" — sparad för granskning (email_preview=true)`)
             } else {
                 const sent = await sendCollectionEmail({
@@ -260,6 +267,13 @@ async function executeNode(
                             claim_id: claim.id, org_id: claim.org_id,
                             to: claim.debtor_phone, body: smsMessage,
                             step: smsStep, status: 'pending',
+                        })
+                        // Skapa notis
+                        await supabaseAdmin.from('notifications').insert({
+                            org_id: claim.org_id,
+                            type: 'draft',
+                            text: `📝 SMS utkast för ${claim.debtor_name} (steg ${smsStep}) väntar på godkännande`,
+                            href: `/dashboard/claims/${claim.id}`,
                         })
                         result.actions.push(`📝 SMS utkast (steg ${smsStep}): Sparat för granskning (sms_preview=true)`)
                     } else {

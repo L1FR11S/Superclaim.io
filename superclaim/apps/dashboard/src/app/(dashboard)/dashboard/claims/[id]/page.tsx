@@ -102,8 +102,8 @@ export default function ClaimDetailPage() {
                     <div>
                         <div className="flex items-center gap-3 flex-wrap">
                             <h1 className="text-2xl font-semibold tracking-tight">{claim.debtor_name}</h1>
-                            <StatusBadge status={claim.status} />
-                            {claim.paused && (
+                            <StatusBadge status={claim.status} paused={claim.paused} />
+                            {claim.paused && claim.status === 'active' && (
                                 <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
                                     ⏸ Pausad — gäldenär har svarat
                                 </span>

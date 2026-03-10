@@ -218,7 +218,7 @@ export default function DashboardPage() {
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             <StatusBadge status={claim.status} paused={claim.paused} />
-                                            {claim.has_reply && (
+                                            {claim.has_reply && claim.status === 'active' && (
                                                 <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
                                                     <MessageSquareReply className="h-3 w-3" /> Svar
                                                 </span>

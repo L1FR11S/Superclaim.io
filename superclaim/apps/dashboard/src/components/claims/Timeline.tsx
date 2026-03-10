@@ -76,6 +76,7 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                     const isDraft = event.status === 'draft';
                     const isInbound = event.direction === 'inbound';
                     const isManualReply = !isInbound && event.subject?.startsWith('Re:');
+                    const isSms = event.channel === 'sms';
                     const isReplying = replyingTo === i;
                     return (
                         <div key={i} className={cn("relative flex gap-4 pl-2", isManualReply && "ml-8")}>
@@ -83,21 +84,23 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                             <div className={cn(
                                 "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
                                 isInbound
-                                    ? "bg-[#1a1020] border-violet-500/30"
+                                    ? "bg-[#1a1015] border-rose-500/30"
                                     : isManualReply
                                         ? "bg-[#101a20] border-blue-500/30"
                                         : isDraft
                                             ? "bg-[#1a1810] border-yellow-500/30"
-                                            : "bg-[#0d1a18] border-primary/30"
+                                            : isSms
+                                                ? "bg-[#161020] border-violet-500/30"
+                                                : "bg-[#0d1820] border-cyan-500/30"
                             )}>
                                 {isInbound ? (
-                                    <ArrowDownLeft className="h-4 w-4 text-violet-400" />
+                                    <ArrowDownLeft className="h-4 w-4 text-rose-400" />
                                 ) : isManualReply ? (
                                     <Reply className="h-4 w-4 text-blue-400" />
                                 ) : event.channel === 'email' ? (
-                                    <Mail className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-primary")} />
+                                    <Mail className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-cyan-400")} />
                                 ) : (
-                                    <MessageSquare className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-primary")} />
+                                    <MessageSquare className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-violet-400")} />
                                 )}
                             </div>
 
@@ -105,12 +108,14 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                             <div className={cn(
                                 "flex-1 rounded-xl border p-4 transition-colors",
                                 isInbound
-                                    ? "bg-violet-500/5 border-violet-500/15 hover:border-violet-500/30"
+                                    ? "bg-rose-500/5 border-rose-500/15 hover:border-rose-500/30"
                                     : isManualReply
                                         ? "bg-blue-500/5 border-blue-500/15 hover:border-blue-500/30"
                                         : isDraft
                                             ? "bg-yellow-500/5 border-yellow-500/15 hover:border-yellow-500/30"
-                                            : "bg-[#122220]/60 border-[#ffffff08] hover:border-primary/20"
+                                            : isSms
+                                                ? "bg-violet-500/5 border-violet-500/15 hover:border-violet-500/25"
+                                                : "bg-cyan-500/5 border-cyan-500/15 hover:border-cyan-500/25"
                             )}>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
@@ -118,17 +123,19 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                                         <span className={cn(
                                             "text-xs px-2 py-0.5 rounded-full border",
                                             isInbound
-                                                ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
+                                                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
                                                 : isManualReply
                                                     ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
                                                     : isDraft
                                                         ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                                                        : "bg-primary/10 text-primary border-primary/20"
+                                                        : isSms
+                                                            ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
+                                                            : "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
                                         )}>
                                             {isInbound ? 'Svar' : isManualReply ? 'Ditt svar' : event.channel === 'email' ? 'E-post' : 'SMS'}
                                         </span>
                                         {isInbound && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400/80 border border-violet-500/20">
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400/80 border border-rose-500/20">
                                                 Inkommande från gäldenär
                                             </span>
                                         )}
@@ -179,7 +186,7 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#ffffff08]">
                                     <div className="flex items-center gap-4">
                                         {isInbound ? (
-                                            <span className="flex items-center gap-1.5 text-xs text-violet-400">
+                                            <span className="flex items-center gap-1.5 text-xs text-rose-400">
                                                 <ArrowDownLeft className="h-3 w-3" /> Mottaget svar
                                             </span>
                                         ) : isManualReply ? (
@@ -191,8 +198,8 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                                                 <Clock className="h-3 w-3" /> Väntar på granskning
                                             </span>
                                         ) : (
-                                            <span className="flex items-center gap-1.5 text-xs text-primary">
-                                                <Mail className="h-3 w-3" /> Skickat ✓
+                                            <span className={cn("flex items-center gap-1.5 text-xs", isSms ? "text-violet-400" : "text-cyan-400")}>
+                                                {isSms ? <MessageSquare className="h-3 w-3" /> : <Mail className="h-3 w-3" />} Skickat ✓
                                             </span>
                                         )}
                                         {event.openedAt && (

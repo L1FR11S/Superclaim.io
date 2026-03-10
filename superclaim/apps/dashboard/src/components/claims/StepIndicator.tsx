@@ -2,6 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import {
+    Zap, Mail, MessageSquare, AlertTriangle, Flag, Check,
+    Clock,
+} from 'lucide-react';
+
+/* ─── Types ──────────────────────────────────────────── */
 
 interface TimelineEvent {
     step: number;
@@ -27,7 +33,7 @@ interface FlowEdge {
 interface DisplayStep {
     type: string;
     label: string;
-    delayDays?: number; // delay BEFORE this step
+    delayDays?: number;
 }
 
 interface StepIndicatorProps {
@@ -35,7 +41,18 @@ interface StepIndicatorProps {
     timeline?: TimelineEvent[];
 }
 
-// Fallback steps if no flow is saved
+/* ─── Icon + color config ────────────────────────────── */
+
+const stepConfig: Record<string, { icon: typeof Zap; color: string }> = {
+    trigger: { icon: Zap, color: 'text-emerald-400' },
+    email: { icon: Mail, color: 'text-cyan-400' },
+    sms: { icon: MessageSquare, color: 'text-violet-400' },
+    escalate: { icon: AlertTriangle, color: 'text-red-400' },
+    end: { icon: Flag, color: 'text-green-400' },
+};
+
+/* ─── Fallback steps ─────────────────────────────────── */
+
 const fallbackSteps: DisplayStep[] = [
     { type: 'trigger', label: 'Skapad' },
     { type: 'email', label: 'Påminnelse', delayDays: 3 },
@@ -45,20 +62,16 @@ const fallbackSteps: DisplayStep[] = [
     { type: 'escalate', label: 'Eskalerat', delayDays: 5 },
 ];
 
-/**
- * Traverse edges from the trigger node to build an ordered list of steps.
- * Delays are collapsed into the NEXT action step as delayDays.
- */
+/* ─── Flow extraction ────────────────────────────────── */
+
 function extractStepsFromFlow(nodes: FlowNode[], edges: FlowEdge[]): DisplayStep[] {
     if (!nodes || nodes.length === 0) return fallbackSteps;
 
     const triggerNode = nodes.find(n => n.type === 'trigger');
     if (!triggerNode || !edges || edges.length === 0) {
-        // Fallback: just use array order, collapse delays
         return collapseDelays(nodes);
     }
 
-    // Build adjacency map
     const adjMap = new Map<string, string>();
     for (const edge of edges) {
         if (!adjMap.has(edge.source) || edge.sourceHandle === 'no') {
@@ -66,7 +79,6 @@ function extractStepsFromFlow(nodes: FlowNode[], edges: FlowEdge[]): DisplayStep
         }
     }
 
-    // Traverse from trigger in edge order
     const orderedNodes: FlowNode[] = [];
     const visited = new Set<string>();
     let currentId: string | undefined = triggerNode.id;
@@ -81,9 +93,6 @@ function extractStepsFromFlow(nodes: FlowNode[], edges: FlowEdge[]): DisplayStep
     return collapseDelays(orderedNodes);
 }
 
-/**
- * Collapse delay nodes into the next action step's delayDays property.
- */
 function collapseDelays(nodes: FlowNode[]): DisplayStep[] {
     const steps: DisplayStep[] = [];
     let pendingDelay: number | undefined;
@@ -92,7 +101,6 @@ function collapseDelays(nodes: FlowNode[]): DisplayStep[] {
         if (node.type === 'delay') {
             pendingDelay = node.data?.days || 7;
         } else if (node.type === 'condition') {
-            // Skip condition nodes in the step indicator
             continue;
         } else {
             steps.push({
@@ -106,6 +114,8 @@ function collapseDelays(nodes: FlowNode[]): DisplayStep[] {
 
     return steps.length > 0 ? steps : fallbackSteps;
 }
+
+/* ─── Component ──────────────────────────────────────── */
 
 export function StepIndicator({ currentStep, timeline = [] }: StepIndicatorProps) {
     const [steps, setSteps] = useState<DisplayStep[]>(fallbackSteps);
@@ -124,13 +134,17 @@ export function StepIndicator({ currentStep, timeline = [] }: StepIndicatorProps
             .catch(() => { });
     }, []);
 
-    // Match timeline events to steps for hover tooltips
-    const getStepInfo = (stepIndex: number): string | null => {
-        if (stepIndex >= currentStep) return null;
+    /* tooltip helpers */
+    const getCompletedInfo = (stepIndex: number) => {
         const events = timeline.filter(e => e.step === stepIndex && e.direction === 'outbound');
         if (events.length === 0) return null;
         const latest = events[events.length - 1];
-        return `${latest.subject}\n${latest.sentAt}`;
+        return { subject: latest.subject, date: latest.sentAt, channel: latest.channel };
+    };
+
+    const getFutureInfo = (step: DisplayStep) => {
+        if (!step.delayDays) return null;
+        return `Väntar — skickas om ${step.delayDays} dagar`;
     };
 
     return (
@@ -138,81 +152,112 @@ export function StepIndicator({ currentStep, timeline = [] }: StepIndicatorProps
             {steps.map((step, i) => {
                 const isCompleted = i < currentStep;
                 const isCurrent = i === currentStep;
-                const isEscalated = step.type === 'escalate' && i <= currentStep;
-                const hoverInfo = getStepInfo(i);
+                const isFuture = i > currentStep;
+                const isEscalated = step.type === 'escalate' && isCompleted;
+                const config = stepConfig[step.type] || stepConfig.email;
+                const Icon = config.icon;
+
+                const completedInfo = isCompleted ? getCompletedInfo(i) : null;
+                const futureInfo = isFuture ? getFutureInfo(step) : null;
+                const hasTooltip = completedInfo || futureInfo || (isCurrent && step.delayDays);
 
                 return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-2 group relative">
-                        {/* Connector + dot row */}
+                    <div key={i} className="flex-1 flex flex-col items-center gap-2.5 group relative">
+                        {/* ── Connector + dot row ── */}
                         <div className="flex items-center w-full">
                             {/* Left connector */}
                             {i > 0 && (
-                                <div className="flex-1 flex flex-col items-center relative">
+                                <div className="flex-1 flex items-center relative">
                                     <div className={cn(
-                                        "h-0.5 w-full transition-all duration-500",
-                                        isCompleted ? "bg-primary" : "bg-[#ffffff10]"
+                                        "h-[2px] w-full transition-all duration-700",
+                                        (isCompleted || isCurrent)
+                                            ? "bg-gradient-to-r from-primary to-primary shadow-[0_0_6px_rgba(0,229,204,0.3)]"
+                                            : "bg-[#ffffff08]"
                                     )} />
-                                    {/* Delay label on the line */}
+                                    {/* Delay badge on the line */}
                                     {step.delayDays && (
                                         <span className={cn(
-                                            "absolute top-1/2 -translate-y-1/2 text-[8px] px-1.5 py-px rounded-full leading-none",
-                                            isCompleted
-                                                ? "bg-[#0d1a18] text-primary/70"
-                                                : "bg-[#0d1a18] text-muted-foreground/40"
+                                            "absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[8px] px-1.5 py-0.5 rounded-full leading-none font-medium border",
+                                            (isCompleted || isCurrent)
+                                                ? "bg-[#0a1a18] text-primary/80 border-primary/20"
+                                                : "bg-[#0a1a18] text-muted-foreground/30 border-[#ffffff08]"
                                         )}>
+                                            <Clock className="h-2 w-2" />
                                             {step.delayDays}d
                                         </span>
                                     )}
                                 </div>
                             )}
 
-                            {/* Step dot */}
+                            {/* Step dot with icon */}
                             <div className={cn(
-                                "h-4 w-4 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
-                                isCompleted && "bg-primary border-primary",
-                                isCurrent && "border-primary shadow-[0_0_12px_rgba(0,229,204,0.5)] animate-[pulse-glow_2s_ease-in-out_infinite]",
-                                isEscalated && "bg-amber-500 border-amber-500",
-                                !isCompleted && !isCurrent && "border-[#ffffff20] bg-transparent"
+                                "relative h-8 w-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0",
+                                isCompleted && !isEscalated && "bg-primary/20 border-primary",
+                                isCompleted && isEscalated && "bg-amber-500/20 border-amber-500",
+                                isCurrent && "border-primary bg-primary/10 shadow-[0_0_16px_rgba(0,229,204,0.4)] animate-[pulse-glow_2s_ease-in-out_infinite]",
+                                isFuture && "border-[#ffffff12] bg-[#ffffff04]"
                             )}>
-                                {isCompleted && (
-                                    <svg className="h-2.5 w-2.5 text-background" fill="currentColor" viewBox="0 0 12 12">
-                                        <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
-                                    </svg>
+                                {isCompleted ? (
+                                    <Check className={cn("h-3.5 w-3.5", isEscalated ? "text-amber-400" : "text-primary")} />
+                                ) : (
+                                    <Icon className={cn(
+                                        "h-3.5 w-3.5 transition-colors",
+                                        isCurrent ? config.color : "text-muted-foreground/30"
+                                    )} />
                                 )}
                             </div>
 
                             {/* Right connector */}
                             {i < steps.length - 1 && (
                                 <div className={cn(
-                                    "h-0.5 flex-1 transition-all duration-500",
-                                    i < currentStep ? "bg-primary" : "bg-[#ffffff10]"
+                                    "h-[2px] flex-1 transition-all duration-700",
+                                    isCompleted
+                                        ? "bg-gradient-to-r from-primary to-primary shadow-[0_0_6px_rgba(0,229,204,0.3)]"
+                                        : "bg-[#ffffff08]"
                                 )} />
                             )}
                         </div>
 
-                        {/* Label */}
+                        {/* ── Label ── */}
                         <span className={cn(
-                            "text-[10px] font-medium tracking-wide uppercase transition-colors text-center leading-tight",
+                            "text-[10px] font-medium tracking-wide uppercase transition-colors text-center leading-tight max-w-[90px]",
                             isCompleted && "text-primary",
                             isCurrent && "text-primary",
-                            !isCompleted && !isCurrent && "text-muted-foreground/50"
+                            isFuture && "text-muted-foreground/40"
                         )}>
                             {step.label}
                         </span>
 
-                        {/* Hover tooltip */}
-                        {hoverInfo && (
-                            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50">
-                                <div className="bg-[#0d1a18]/95 backdrop-blur-xl border border-white/10 rounded-xl px-3 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.4)] whitespace-pre-line text-center min-w-[140px]">
-                                    {hoverInfo.split('\n').map((line, j) => (
-                                        <p key={j} className={cn(
-                                            j === 0 ? "text-xs font-medium text-foreground" : "text-[10px] text-muted-foreground mt-0.5"
-                                        )}>
-                                            {line}
-                                        </p>
-                                    ))}
+                        {/* ── Date under completed steps ── */}
+                        {completedInfo && (
+                            <span className="text-[9px] text-primary/50 -mt-1">
+                                {completedInfo.date}
+                            </span>
+                        )}
+
+                        {/* ── Hover tooltip ── */}
+                        {hasTooltip && (
+                            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all duration-200 pointer-events-none z-50">
+                                <div className="bg-[#0a1a18]/95 backdrop-blur-xl border border-primary/10 rounded-xl px-3.5 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-center min-w-[160px]">
+                                    {completedInfo ? (
+                                        <>
+                                            <p className="text-xs font-medium text-foreground">{completedInfo.subject}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-1 flex items-center justify-center gap-1">
+                                                {completedInfo.channel === 'sms'
+                                                    ? <MessageSquare className="h-2.5 w-2.5" />
+                                                    : <Mail className="h-2.5 w-2.5" />
+                                                }
+                                                Skickad {completedInfo.date}
+                                            </p>
+                                        </>
+                                    ) : futureInfo ? (
+                                        <p className="text-[11px] text-muted-foreground/70">{futureInfo}</p>
+                                    ) : isCurrent && step.delayDays ? (
+                                        <p className="text-[11px] text-primary/70">Pågående — väntar {step.delayDays} dagar</p>
+                                    ) : null}
                                 </div>
-                                <div className="w-2 h-2 bg-[#0d1a18]/95 border-b border-r border-white/10 rotate-45 mx-auto -mt-1" />
+                                {/* Arrow */}
+                                <div className="w-2 h-2 bg-[#0a1a18]/95 border-b border-r border-primary/10 rotate-45 mx-auto -mt-1" />
                             </div>
                         )}
                     </div>

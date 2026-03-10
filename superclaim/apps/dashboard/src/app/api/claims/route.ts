@@ -100,8 +100,24 @@ export async function GET() {
             )
         }
 
+        // Hämta claim_ids som har inbound-svar
+        const claimIds = allClaims.map(c => c.id)
+        const { data: inboundReplies } = await admin
+            .from('claim_communications')
+            .select('claim_id')
+            .eq('org_id', org.id)
+            .eq('direction', 'inbound')
+            .in('claim_id', claimIds)
+
+        const claimsWithReply = new Set((inboundReplies || []).map(r => r.claim_id))
+
+        const enrichedClaims = allClaims.map(c => ({
+            ...c,
+            has_reply: claimsWithReply.has(c.id),
+        }))
+
         return NextResponse.json({
-            claims: allClaims,
+            claims: enrichedClaims,
             kpis: {
                 totalOutstanding,
                 activeClaims: active.length,

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow, FlaskConical, Check } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow, FlaskConical, Check, X } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -34,6 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
     const router = useRouter();
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showAllNotifications, setShowAllNotifications] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -300,7 +301,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     {notifications.length > 0 && (
                                         <div className="p-3 border-t border-[#ffffff08]">
                                             <button
-                                                onClick={() => { router.push('/dashboard/notifications'); setShowNotifications(false); }}
+                                                onClick={() => { setShowAllNotifications(true); setShowNotifications(false); }}
                                                 className="text-xs text-primary hover:text-primary/80 transition-colors w-full text-center"
                                             >
                                                 Visa alla notifikationer
@@ -368,6 +369,94 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {children}
                 </div>
             </main>
+
+            {/* All Notifications Modal */}
+            {showAllNotifications && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                        onClick={() => setShowAllNotifications(false)}
+                    />
+                    {/* Modal */}
+                    <div className="relative w-full max-w-lg mx-4 rounded-2xl border border-[#ffffff10] bg-[#0d1a18]/95 backdrop-blur-xl shadow-[0_16px_64px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300 overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-5 border-b border-[#ffffff08]">
+                            <div>
+                                <h3 className="text-lg font-semibold">Notifikationer</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {unreadCount > 0 ? `${unreadCount} olästa` : 'Alla lästa'}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {unreadCount > 0 && (
+                                    <button
+                                        onClick={markAllAsRead}
+                                        className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-primary/10"
+                                    >
+                                        <Check className="h-3 w-3" /> Markera alla
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setShowAllNotifications(false)}
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[#ffffff08] transition-colors"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Notification list */}
+                        <div className="max-h-[60vh] overflow-y-auto">
+                            {notifications.length === 0 ? (
+                                <div className="px-5 py-16 text-center">
+                                    <Bell className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+                                    <p className="text-sm text-muted-foreground/50">Inga notifikationer ännu</p>
+                                </div>
+                            ) : notifications.map((n) => (
+                                <Link
+                                    key={n.id}
+                                    href={n.href || '#'}
+                                    onClick={() => {
+                                        if (!n.read) markAsRead(n.id);
+                                        setShowAllNotifications(false);
+                                    }}
+                                    className={cn(
+                                        "flex items-start gap-3 px-5 py-4 hover:bg-primary/5 transition-colors border-b border-[#ffffff05] last:border-0",
+                                        !n.read && "bg-primary/[0.03]"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "mt-1.5 h-2.5 w-2.5 rounded-full shrink-0 transition-opacity",
+                                        n.read ? "opacity-0" : "opacity-100",
+                                        n.type === 'paid' && "bg-[#f5c842]",
+                                        n.type === 'reply' && "bg-violet-400",
+                                        n.type === 'info' && "bg-primary",
+                                        n.type === 'draft' && "bg-primary",
+                                        n.type === 'warning' && "bg-amber-500",
+                                        n.type === 'escalated' && "bg-amber-500",
+                                    )} />
+                                    <div className="flex-1 min-w-0">
+                                        <p className={cn(
+                                            "text-sm",
+                                            n.read ? "text-foreground/60" : "text-foreground/90 font-medium"
+                                        )}>{n.text}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            {new Date(n.time).toLocaleString('sv-SE', {
+                                                day: 'numeric', month: 'short', year: 'numeric',
+                                                hour: '2-digit', minute: '2-digit'
+                                            })}
+                                        </p>
+                                    </div>
+                                    {!n.read && (
+                                        <span className="text-[10px] text-primary/60 mt-1 shrink-0">Ny</span>
+                                    )}
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

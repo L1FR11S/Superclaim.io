@@ -3,9 +3,14 @@ import { Badge } from '@/components/ui/badge';
 
 interface StatusBadgeProps {
     status: 'active' | 'paid' | 'escalated' | 'cancelled';
+    paused?: boolean;
 }
 
 const statusConfig = {
+    paused: {
+        label: 'Pausad',
+        className: 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.15)]',
+    },
     active: {
         label: 'Aktiv',
         className: 'bg-primary/10 text-primary border-primary/30 shadow-[0_0_8px_rgba(0,229,204,0.2)]',
@@ -24,8 +29,10 @@ const statusConfig = {
     },
 };
 
-export function StatusBadge({ status }: StatusBadgeProps) {
-    const config = statusConfig[status];
+export function StatusBadge({ status, paused }: StatusBadgeProps) {
+    // Om ärendet är pausat och fortfarande aktivt → visa "Pausad"
+    const effectiveStatus = (paused && status === 'active') ? 'paused' : status;
+    const config = statusConfig[effectiveStatus];
     return (
         <Badge variant="outline" className={cn(config.className)}>
             {config.label}

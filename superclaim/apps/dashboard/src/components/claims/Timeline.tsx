@@ -74,20 +74,25 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                 {events.map((event, i) => {
                     const isDraft = event.status === 'draft';
                     const isInbound = event.direction === 'inbound';
+                    const isManualReply = !isInbound && event.subject?.startsWith('Re:');
                     const isReplying = replyingTo === i;
                     return (
-                        <div key={i} className="relative flex gap-4 pl-2">
+                        <div key={i} className={cn("relative flex gap-4 pl-2", isManualReply && "ml-8")}>
                             {/* Dot */}
                             <div className={cn(
                                 "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
                                 isInbound
                                     ? "bg-[#1a1020] border-violet-500/30"
-                                    : isDraft
-                                        ? "bg-[#1a1810] border-yellow-500/30"
-                                        : "bg-[#0d1a18] border-primary/30"
+                                    : isManualReply
+                                        ? "bg-[#101a20] border-blue-500/30"
+                                        : isDraft
+                                            ? "bg-[#1a1810] border-yellow-500/30"
+                                            : "bg-[#0d1a18] border-primary/30"
                             )}>
                                 {isInbound ? (
                                     <ArrowDownLeft className="h-4 w-4 text-violet-400" />
+                                ) : isManualReply ? (
+                                    <Reply className="h-4 w-4 text-blue-400" />
                                 ) : event.channel === 'email' ? (
                                     <Mail className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-primary")} />
                                 ) : (
@@ -100,9 +105,11 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                                 "flex-1 rounded-xl border p-4 transition-colors",
                                 isInbound
                                     ? "bg-violet-500/5 border-violet-500/15 hover:border-violet-500/30"
-                                    : isDraft
-                                        ? "bg-yellow-500/5 border-yellow-500/15 hover:border-yellow-500/30"
-                                        : "bg-[#122220]/60 border-[#ffffff08] hover:border-primary/20"
+                                    : isManualReply
+                                        ? "bg-blue-500/5 border-blue-500/15 hover:border-blue-500/30"
+                                        : isDraft
+                                            ? "bg-yellow-500/5 border-yellow-500/15 hover:border-yellow-500/30"
+                                            : "bg-[#122220]/60 border-[#ffffff08] hover:border-primary/20"
                             )}>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
@@ -111,15 +118,22 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                                             "text-xs px-2 py-0.5 rounded-full border",
                                             isInbound
                                                 ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
-                                                : isDraft
-                                                    ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                                                    : "bg-primary/10 text-primary border-primary/20"
+                                                : isManualReply
+                                                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                                    : isDraft
+                                                        ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                                                        : "bg-primary/10 text-primary border-primary/20"
                                         )}>
-                                            {isInbound ? 'Svar' : event.channel === 'email' ? 'E-post' : 'SMS'}
+                                            {isInbound ? 'Svar' : isManualReply ? 'Ditt svar' : event.channel === 'email' ? 'E-post' : 'SMS'}
                                         </span>
                                         {isInbound && (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400/80 border border-violet-500/20">
                                                 Inkommande från gäldenär
+                                            </span>
+                                        )}
+                                        {isManualReply && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400/80 border border-blue-500/20">
+                                                ↩ Svar till gäldenär
                                             </span>
                                         )}
                                         {isDraft && (
@@ -142,6 +156,10 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                                         {isInbound ? (
                                             <span className="flex items-center gap-1.5 text-xs text-violet-400">
                                                 <ArrowDownLeft className="h-3 w-3" /> Mottaget svar
+                                            </span>
+                                        ) : isManualReply ? (
+                                            <span className="flex items-center gap-1.5 text-xs text-blue-400">
+                                                <Reply className="h-3 w-3" /> Svarat ✓
                                             </span>
                                         ) : isDraft ? (
                                             <span className="flex items-center gap-1.5 text-xs text-yellow-400">

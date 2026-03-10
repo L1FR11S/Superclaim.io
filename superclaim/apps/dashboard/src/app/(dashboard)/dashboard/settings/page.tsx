@@ -289,34 +289,34 @@ function SettingsContent() {
                             <p className="text-sm text-muted-foreground mt-0.5">Hantera din personliga information</p>
                         </div>
 
-                        <GlassCard className="p-6 space-y-5">
+                        <GlassCard className="p-6 space-y-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label className="text-sm">Förnamn</Label>
+                                    <Label className="text-sm text-muted-foreground">Förnamn</Label>
                                     <Input
                                         value={firstName}
                                         onChange={(e) => setFirstName(e.target.value)}
                                         placeholder="Förnamn"
-                                        className="bg-[#122220] border-[#ffffff10]"
+                                        className="h-11 bg-black/20 border-white/5 text-foreground placeholder:text-muted-foreground/30"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-sm">Efternamn</Label>
+                                    <Label className="text-sm text-muted-foreground">Efternamn</Label>
                                     <Input
                                         value={lastName}
                                         onChange={(e) => setLastName(e.target.value)}
                                         placeholder="Efternamn"
-                                        className="bg-[#122220] border-[#ffffff10]"
+                                        className="h-11 bg-black/20 border-white/5 text-foreground placeholder:text-muted-foreground/30"
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-sm">E-post</Label>
+                            <div className="space-y-2 mt-6 pt-6 border-t border-[#ffffff08]">
+                                <Label className="text-sm text-muted-foreground">E-post</Label>
                                 <Input
                                     value={profileEmail}
                                     disabled
-                                    className="bg-[#122220] border-[#ffffff10] opacity-50 cursor-not-allowed"
+                                    className="h-11 bg-black/20 border-white/5 opacity-50 cursor-not-allowed"
                                 />
                                 <p className="text-xs text-muted-foreground">Inloggnings-e-post kan inte ändras här</p>
                             </div>
@@ -332,21 +332,21 @@ function SettingsContent() {
                         </Button>
 
                         {/* Password */}
-                        <GlassCard className="p-6 space-y-5">
+                        <GlassCard className="p-6 space-y-6">
                             <div>
                                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                     <Lock className="h-4 w-4" /> Byt lösenord
                                 </h3>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm">Nytt lösenord</Label>
+                                <Label className="text-sm text-muted-foreground">Nytt lösenord</Label>
                                 <div className="relative">
                                     <Input
                                         type={showPassword ? 'text' : 'password'}
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         placeholder="Minst 8 tecken"
-                                        className="bg-[#122220] border-[#ffffff10] pr-10"
+                                        className="h-11 bg-black/20 border-white/5 pr-10 placeholder:text-muted-foreground/30"
                                     />
                                     <button
                                         type="button"
@@ -358,13 +358,13 @@ function SettingsContent() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm">Bekräfta lösenord</Label>
+                                <Label className="text-sm text-muted-foreground">Bekräfta lösenord</Label>
                                 <Input
                                     type={showPassword ? 'text' : 'password'}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     placeholder="Upprepa lösenordet"
-                                    className="bg-[#122220] border-[#ffffff10]"
+                                    className="h-11 bg-black/20 border-white/5 placeholder:text-muted-foreground/30"
                                 />
                                 {confirmPassword && newPassword !== confirmPassword && (
                                     <p className="text-xs text-red-400 animate-in fade-in">Lösenorden matchar inte</p>
@@ -391,48 +391,48 @@ function SettingsContent() {
                             <p className="text-sm text-muted-foreground mt-0.5">Företagsinformation och medlemmar</p>
                         </div>
 
-                        <GlassCard className="p-6 space-y-5">
+                        <GlassCard className="p-6 space-y-6">
                             <div className="space-y-2">
-                                <Label className="text-sm">Organisationsnamn</Label>
+                                <Label className="text-sm text-muted-foreground">Organisationsnamn</Label>
                                 <Input value={orgData.name} onChange={(e) => setOrgData(d => ({ ...d, name: e.target.value }))}
-                                    placeholder="Ditt Företag AB" className="bg-[#122220] border-[#ffffff10]" />
+                                    placeholder="Ditt Företag AB" className="h-11 bg-black/20 border-white/5 placeholder:text-muted-foreground/30" />
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-sm">Organisationsnummer</Label>
+                                <Label className="text-sm text-muted-foreground">Organisationsnummer</Label>
                                 <Input value={orgData.org_number} onChange={(e) => setOrgData(d => ({ ...d, org_number: e.target.value }))}
-                                    placeholder="XXXXXX-XXXX" className="bg-[#122220] border-[#ffffff10] font-mono" />
+                                    placeholder="XXXXXX-XXXX" className="h-11 bg-black/20 border-white/5 font-mono placeholder:text-muted-foreground/30" />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-sm">Gatuadress</Label>
+                            <div className="space-y-2 mt-6 pt-6 border-t border-[#ffffff08]">
+                                <Label className="text-sm text-muted-foreground">Gatuadress</Label>
                                 <Input value={orgData.address || ''} onChange={(e) => setOrgData(d => ({ ...d, address: e.target.value }))}
-                                    placeholder="Storgatan 1" className="bg-[#122220] border-[#ffffff10]" />
+                                    placeholder="Storgatan 1" className="h-11 bg-black/20 border-white/5 placeholder:text-muted-foreground/30" />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label className="text-sm">Postnummer</Label>
+                                    <Label className="text-sm text-muted-foreground">Postnummer</Label>
                                     <Input value={orgData.postal_code || ''} onChange={(e) => setOrgData(d => ({ ...d, postal_code: e.target.value }))}
-                                        placeholder="111 22" className="bg-[#122220] border-[#ffffff10] font-mono" />
+                                        placeholder="111 22" className="h-11 bg-black/20 border-white/5 font-mono placeholder:text-muted-foreground/30" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-sm">Ort</Label>
+                                    <Label className="text-sm text-muted-foreground">Ort</Label>
                                     <Input value={orgData.city || ''} onChange={(e) => setOrgData(d => ({ ...d, city: e.target.value }))}
-                                        placeholder="Stockholm" className="bg-[#122220] border-[#ffffff10]" />
+                                        placeholder="Stockholm" className="h-11 bg-black/20 border-white/5 placeholder:text-muted-foreground/30" />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-sm">Telefonnummer</Label>
+                                <Label className="text-sm text-muted-foreground">Telefonnummer</Label>
                                 <Input value={orgData.phone || ''} onChange={(e) => setOrgData(d => ({ ...d, phone: e.target.value }))}
-                                    placeholder="+46 70 123 45 67" className="bg-[#122220] border-[#ffffff10] font-mono" />
+                                    placeholder="+46 70 123 45 67" className="h-11 bg-black/20 border-white/5 font-mono placeholder:text-muted-foreground/30" />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-sm">Kontakt-e-post</Label>
+                            <div className="space-y-2 mt-6 pt-6 border-t border-[#ffffff08]">
+                                <Label className="text-sm text-muted-foreground">Kontakt-e-post</Label>
                                 <Input value={orgData.email} disabled
-                                    className="bg-[#122220] border-[#ffffff10] opacity-50 cursor-not-allowed" />
+                                    className="h-11 bg-black/20 border-white/5 opacity-50 cursor-not-allowed" />
                                 <p className="text-xs text-muted-foreground">Kontot som äger organisationen</p>
                             </div>
                         </GlassCard>
@@ -523,13 +523,13 @@ function SettingsContent() {
                                     value={inviteEmail}
                                     onChange={(e) => setInviteEmail(e.target.value)}
                                     placeholder="namn@foretag.se"
-                                    className="bg-[#122220] border-[#ffffff10] flex-1"
+                                    className="h-11 bg-black/20 border-white/5 flex-1 placeholder:text-muted-foreground/30"
                                     onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                                 />
                                 <select
                                     value={inviteRole}
                                     onChange={(e) => setInviteRole(e.target.value as 'admin' | 'member')}
-                                    className="h-9 px-3 rounded-md bg-[#122220] border border-[#ffffff10] text-sm text-muted-foreground"
+                                    className="h-11 px-4 rounded-md bg-black/20 border border-white/5 text-sm text-foreground"
                                 >
                                     <option value="member">Medlem</option>
                                     <option value="admin">Admin</option>
@@ -537,10 +537,9 @@ function SettingsContent() {
                                 <Button
                                     onClick={handleInvite}
                                     disabled={inviting || !inviteEmail.trim()}
-                                    size="sm"
-                                    className="bg-primary/20 text-primary hover:bg-primary/30 shrink-0"
+                                    className="h-11 bg-primary/20 text-primary hover:bg-primary/30 shrink-0 px-6"
                                 >
-                                    {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><UserPlus className="h-4 w-4 mr-1" /> Bjud in</>}
+                                    {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><UserPlus className="h-4 w-4 mr-2" /> Bjud in</>}
                                 </Button>
                             </div>
                         </div>
@@ -575,7 +574,7 @@ function SettingsContent() {
                                         }}
                                         placeholder="DittFöretag"
                                         maxLength={11}
-                                        className="bg-[#122220] border-[#ffffff10] font-mono max-w-xs"
+                                        className="h-11 bg-black/20 border-white/5 font-mono max-w-xs placeholder:text-muted-foreground/30"
                                     />
                                     <span className="text-xs text-muted-foreground">{smsSenderName.length}/11</span>
                                 </div>
@@ -645,7 +644,7 @@ function SettingsContent() {
                             {!domainData.domain ? (
                                 <div className="flex items-center gap-2">
                                     <Input value={domainInput} onChange={(e) => setDomainInput(e.target.value)}
-                                        placeholder="dittforetag.se" className="bg-[#122220] border-[#ffffff10] font-mono" />
+                                        placeholder="dittforetag.se" className="h-11 bg-black/20 border-white/5 font-mono placeholder:text-muted-foreground/30" />
                                     <Button
                                         onClick={async () => {
                                             if (!domainInput.trim()) return;
@@ -665,7 +664,7 @@ function SettingsContent() {
                                             finally { setDomainLoading(false); }
                                         }}
                                         disabled={domainLoading || !domainInput.trim()}
-                                        className="shrink-0 bg-primary/20 text-primary hover:bg-primary/30"
+                                        className="h-11 shrink-0 bg-primary/20 text-primary hover:bg-primary/30 px-6"
                                     >
                                         {domainLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Lägg till'}
                                     </Button>

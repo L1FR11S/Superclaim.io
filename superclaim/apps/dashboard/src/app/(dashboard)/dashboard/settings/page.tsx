@@ -10,6 +10,7 @@ import {
     Settings, Plug, User, CreditCard, MessageSquare, Building, UserPlus, Trash2, Shield, Eye, EyeOff, Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { cn } from '@/lib/utils';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
@@ -64,6 +65,10 @@ function SettingsContent() {
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [inboxId, setInboxId] = useState<string | null>(null);
+
+    // Confirm dialog state
+    const [removeMember, setRemoveMember] = useState<{ id: string; email: string } | null>(null);
+    const [showFortnoxDisconnect, setShowFortnoxDisconnect] = useState(false);
 
     // Domain state
     const [domainInput, setDomainInput] = useState('');
@@ -240,7 +245,13 @@ function SettingsContent() {
     };
 
     const handleRemoveMember = async (id: string, email: string) => {
-        if (!confirm(`Vill du ta bort ${email} från organisationen?`)) return;
+        setRemoveMember({ id, email });
+    };
+
+    const confirmRemoveMember = async () => {
+        if (!removeMember) return;
+        const { id } = removeMember;
+        setRemoveMember(null);
         try {
             const res = await fetch(`/api/members?id=${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -850,14 +861,7 @@ function SettingsContent() {
                                             <p className="text-xs text-muted-foreground mt-0.5">Tar bort koppling och raderar tokens</p>
                                         </div>
                                         <Button size="sm" variant="outline"
-                                            onClick={async () => {
-                                                if (!confirm('Koppla från Fortnox?')) return;
-                                                try {
-                                                    const res = await fetch('/api/fortnox/disconnect', { method: 'POST' });
-                                                    if (res.ok) { setFortnoxConnected(false); setFortnoxAutoImport(false); toast.success('Frånkopplat'); }
-                                                    else toast.error('Misslyckades');
-                                                } catch { toast.error('Nätverksfel'); }
-                                            }}
+                                            onClick={() => setShowFortnoxDisconnect(true)}
                                             className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
                                         >
                                             <Unlink className="h-4 w-4 mr-1" /> Koppla från
@@ -894,6 +898,35 @@ function SettingsContent() {
                     </>
                 )}
             </div>
+
+            {/* Remove Member Confirm */}
+            <ConfirmDialog
+                open={!!removeMember}
+                onConfirm={confirmRemoveMember}
+                onCancel={() => setRemoveMember(null)}
+                title={`Ta bort ${removeMember?.email}?`}
+                description="Användaren förlorar tillgång till organisationen."
+                confirmLabel="Ta bort"
+                variant="destructive"
+            />
+
+            {/* Fortnox Disconnect Confirm */}
+            <ConfirmDialog
+                open={showFortnoxDisconnect}
+                onConfirm={async () => {
+                    setShowFortnoxDisconnect(false);
+                    try {
+                        const res = await fetch('/api/fortnox/disconnect', { method: 'POST' });
+                        if (res.ok) { setFortnoxConnected(false); setFortnoxAutoImport(false); toast.success('Frånkopplat'); }
+                        else toast.error('Misslyckades');
+                    } catch { toast.error('Nätverksfel'); }
+                }}
+                onCancel={() => setShowFortnoxDisconnect(false)}
+                title="Koppla från Fortnox?"
+                description="Alla tokens raderas och synkronisering stoppas."
+                confirmLabel="Koppla från"
+                variant="warning"
+            />
         </div>
     );
 }

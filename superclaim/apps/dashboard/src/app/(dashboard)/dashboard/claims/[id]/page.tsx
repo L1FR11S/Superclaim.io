@@ -10,6 +10,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { StepIndicator } from '@/components/claims/StepIndicator';
 import { Timeline } from '@/components/claims/Timeline';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
 interface Claim {
     id: string;
@@ -58,6 +59,7 @@ export default function ClaimDetailPage() {
     const [claim, setClaim] = useState<Claim | null>(null);
     const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const fetchClaim = () => {
         if (!id) return;
@@ -195,17 +197,7 @@ export default function ClaimDetailPage() {
                     </div>
                 )}
                 <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                    onClick={async () => {
-                        if (!confirm(`Vill du verkligen ta bort ärendet för ${claim.debtor_name}? Det går inte att ångra.`)) return;
-                        const res = await fetch(`/api/claims/${id}`, { method: 'DELETE' });
-                        if (res.ok) {
-                            toast.success('Ärende borttaget');
-                            router.push('/dashboard/claims');
-                        } else {
-                            const err = await res.json().catch(() => ({}));
-                            toast.error('Kunde inte ta bort ärendet', { description: err.error || `HTTP ${res.status}` });
-                        }
-                    }}
+                    onClick={() => setShowDeleteConfirm(true)}
                 >
                     <Trash2 className="h-4 w-4 mr-2" /> Ta bort
                 </Button>
@@ -290,6 +282,27 @@ export default function ClaimDetailPage() {
                     </GlassCard>
                 )}
             </div>
+
+            {/* Delete Confirm */}
+            <ConfirmDialog
+                open={showDeleteConfirm}
+                onConfirm={async () => {
+                    setShowDeleteConfirm(false);
+                    const res = await fetch(`/api/claims/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        toast.success('Ärende borttaget');
+                        router.push('/dashboard/claims');
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        toast.error('Kunde inte ta bort ärendet', { description: err.error || `HTTP ${res.status}` });
+                    }
+                }}
+                onCancel={() => setShowDeleteConfirm(false)}
+                title={`Ta bort ärendet för ${claim?.debtor_name}?`}
+                description="Det går inte att ångra."
+                confirmLabel="Ta bort"
+                variant="destructive"
+            />
         </div>
     );
 }

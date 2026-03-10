@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { Search, Filter, Download, Plus, RefreshCw, Trash2, MessageSquareReply, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { NewClaimModal } from '@/components/claims/NewClaimModal';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
 interface Claim {
     id: string;
@@ -114,8 +115,10 @@ export default function ClaimsListPage() {
         });
     };
 
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     const handleBulkDelete = async () => {
-        if (!confirm(`Vill du ta bort ${selected.size} ärende${selected.size > 1 ? 'n' : ''}? Det går inte att ångra.`)) return;
+        setShowDeleteConfirm(false);
         setDeleteLoading(true);
         let deleted = 0;
         let failed = 0;
@@ -250,7 +253,7 @@ export default function ClaimsListPage() {
                     <Button
                         size="sm"
                         disabled={deleteLoading}
-                        onClick={handleBulkDelete}
+                        onClick={() => setShowDeleteConfirm(true)}
                         className="h-8 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:text-red-300"
                     >
                         <Trash2 className="h-3.5 w-3.5 mr-1.5" />
@@ -384,6 +387,18 @@ export default function ClaimsListPage() {
                 open={showNewClaim}
                 onClose={() => setShowNewClaim(false)}
                 onCreated={loadClaims}
+            />
+
+            {/* Delete Confirm */}
+            <ConfirmDialog
+                open={showDeleteConfirm}
+                onConfirm={handleBulkDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                title={`Ta bort ${selected.size} ärende${selected.size > 1 ? 'n' : ''}?`}
+                description="Det går inte att ångra."
+                confirmLabel="Ta bort"
+                variant="destructive"
+                loading={deleteLoading}
             />
         </div>
     );

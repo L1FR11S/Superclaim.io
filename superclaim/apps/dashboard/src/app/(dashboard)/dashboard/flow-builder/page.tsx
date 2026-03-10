@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
 // ─── Default flow ───────────────────────────────────
 
@@ -160,12 +161,19 @@ export default function FlowBuilderPage() {
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const idCounter = useRef(100);
 
+    const [pendingTemplate, setPendingTemplate] = useState<typeof flowTemplates[0] | null>(null);
+
     const applyTemplate = (template: typeof flowTemplates[0]) => {
-        if (!confirm(`Vill du byta till "${template.name}"? Ditt nuvarande flöde ersätts.`)) return;
-        setNodes(template.nodes);
-        setEdges(template.edges);
+        setPendingTemplate(template);
+    };
+
+    const confirmApplyTemplate = () => {
+        if (!pendingTemplate) return;
+        setNodes(pendingTemplate.nodes);
+        setEdges(pendingTemplate.edges);
         setShowTemplates(false);
-        toast.success(`Mall "${template.name}" laddad`, { description: template.desc });
+        toast.success(`Mall "${pendingTemplate.name}" laddad`, { description: pendingTemplate.desc });
+        setPendingTemplate(null);
     };
 
     // Load saved flow from DB
@@ -435,6 +443,17 @@ export default function FlowBuilderPage() {
                     )}
                 </div>
             </div>
+
+            {/* Template Confirm */}
+            <ConfirmDialog
+                open={!!pendingTemplate}
+                onConfirm={confirmApplyTemplate}
+                onCancel={() => setPendingTemplate(null)}
+                title={`Byta till "${pendingTemplate?.name}"?`}
+                description="Ditt nuvarande flöde ersätts med mallen."
+                confirmLabel="Byt mall"
+                variant="warning"
+            />
         </div>
     );
 }

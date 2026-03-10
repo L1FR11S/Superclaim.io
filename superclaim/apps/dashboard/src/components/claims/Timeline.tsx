@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { cn } from "@/lib/utils";
-import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft, Reply, Send, Loader2 } from 'lucide-react';
+import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft, Reply, Send, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { stripEmailQuote } from '@/lib/utils/stripEmailQuote';
 
 interface TimelineEvent {
     step: number;
@@ -148,7 +149,31 @@ export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
                                 {event.subject && (
                                     <p className="text-sm font-medium text-foreground/90 mb-1">{event.subject}</p>
                                 )}
-                                <p className="text-sm text-muted-foreground leading-relaxed">{event.body}</p>
+                                {(() => {
+                                    const stripped = isInbound ? stripEmailQuote(event.body || '') : event.body;
+                                    const hasQuote = isInbound && stripped !== event.body;
+                                    return (
+                                        <>
+                                            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{stripped}</p>
+                                            {hasQuote && (
+                                                <button
+                                                    onClick={() => {
+                                                        const el = document.getElementById(`full-body-${i}`);
+                                                        if (el) el.classList.toggle('hidden');
+                                                    }}
+                                                    className="text-xs text-muted-foreground/50 hover:text-muted-foreground mt-2 flex items-center gap-1"
+                                                >
+                                                    <ChevronDown className="h-3 w-3" /> Visa hela meddelandet
+                                                </button>
+                                            )}
+                                            {hasQuote && (
+                                                <div id={`full-body-${i}`} className="hidden mt-2 pt-2 border-t border-[#ffffff08]">
+                                                    <p className="text-xs text-muted-foreground/40 leading-relaxed whitespace-pre-wrap">{event.body}</p>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
 
                                 {/* Status indicators + reply button */}
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#ffffff08]">

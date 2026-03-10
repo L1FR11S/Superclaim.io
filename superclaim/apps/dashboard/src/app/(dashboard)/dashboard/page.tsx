@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Sparkline } from '@/components/shared/Sparkline';
 import { useRouter } from 'next/navigation';
-import { TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Loader2, MessageSquareReply } from 'lucide-react';
 
 interface Claim {
     id: string;
@@ -17,6 +17,8 @@ interface Claim {
     days_overdue: number;
     current_step: number;
     status: 'active' | 'paid' | 'escalated' | 'cancelled';
+    paused?: boolean;
+    has_reply?: boolean;
 }
 
 interface KpiTrends {
@@ -69,6 +71,10 @@ export default function DashboardPage() {
 
     // Sort claims to show most recent/urgent first, take top 5
     const recentClaims = [...data.claims]
+        .map(c => ({
+            ...c,
+            days_overdue: c.days_overdue ?? Math.max(0, Math.floor((Date.now() - new Date(c.due_date).getTime()) / 86400000)),
+        }))
         .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())
         .slice(0, 5);
 
@@ -210,7 +216,14 @@ export default function DashboardPage() {
                                         ) : '-'}
                                     </TableCell>
                                     <TableCell>
-                                        <StatusBadge status={claim.status} />
+                                        <div className="flex items-center gap-2">
+                                            <StatusBadge status={claim.status} />
+                                            {(claim.paused || claim.has_reply) && (
+                                                <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                                    <MessageSquareReply className="h-3 w-3" /> Svar
+                                                </span>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             );

@@ -64,6 +64,7 @@ export async function GET(
                 sentAt: r.created_at,
                 openedAt: r.opened_at || null,
                 status: 'sent',
+                agentmail_message_id: r.agentmail_message_id || null,
             })),
             ...(emailDraftRows || []).map((r: any) => ({
                 step: r.step,

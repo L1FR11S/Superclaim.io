@@ -82,6 +82,22 @@ export async function sendCollectionEmail(params: {
 }
 
 /**
+ * Reply to an existing message in the same thread
+ */
+export async function replyToMessage(params: {
+    inboxId: string
+    messageId: string
+    body: string
+}) {
+    const result = await getClient().inboxes.messages.replyAll(
+        params.inboxId,
+        params.messageId,
+        { text: params.body }
+    )
+    return result
+}
+
+/**
  * Get a conversation thread
  */
 export async function getThread(inboxId: string, threadId: string) {

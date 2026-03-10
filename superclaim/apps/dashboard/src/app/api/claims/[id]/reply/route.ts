@@ -1,12 +1,13 @@
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
-import { sendCollectionEmail } from '@/lib/email/agentmail'
+import { sendCollectionEmail, replyToMessage } from '@/lib/email/agentmail'
 
 /**
  * POST /api/claims/[id]/reply
  * Send a manual reply to a debtor from the dashboard.
- * Uses the org's AgentMail inbox and the claim's thread to keep the conversation.
+ * If messageId is provided, replies in the same thread via reply-all.
+ * Otherwise sends a new email.
  */
 export async function POST(
     request: Request,
@@ -50,19 +51,30 @@ export async function POST(
         }
 
         const body = await request.json()
-        const { subject, message } = body
+        const { subject, message, messageId } = body
 
         if (!message || !message.trim()) {
             return NextResponse.json({ error: 'Meddelande krävs' }, { status: 400 })
         }
 
-        // Send via AgentMail
-        const sent = await sendCollectionEmail({
-            inboxId: settings.agentmail_inbox_id,
-            to: claim.debtor_email,
-            subject: subject || `Re: Ärende ${claim.debtor_name}`,
-            body: message,
-        })
+        let sent: any
+
+        if (messageId) {
+            // Reply in same thread via reply-all
+            sent = await replyToMessage({
+                inboxId: settings.agentmail_inbox_id,
+                messageId,
+                body: message,
+            })
+        } else {
+            // New email
+            sent = await sendCollectionEmail({
+                inboxId: settings.agentmail_inbox_id,
+                to: claim.debtor_email,
+                subject: subject || `Re: Ärende ${claim.debtor_name}`,
+                body: message,
+            })
+        }
 
         // Log as outbound communication
         await admin.from('claim_communications').insert({
@@ -71,22 +83,15 @@ export async function POST(
             step: claim.current_step,
             channel: 'email',
             direction: 'outbound',
-            subject: subject || `Re: Ärende ${claim.debtor_name}`,
+            subject: subject || sent.subject || `Re: Ärende ${claim.debtor_name}`,
             body: message,
-            agentmail_message_id: sent.messageId,
-            agentmail_thread_id: sent.threadId,
+            agentmail_message_id: sent.messageId || sent.message_id,
+            agentmail_thread_id: sent.threadId || sent.thread_id,
         })
-
-        // Update thread_id on claim if not set
-        if (sent.threadId && !claim.agentmail_thread_id) {
-            await admin.from('claims').update({
-                agentmail_thread_id: sent.threadId,
-            }).eq('id', claim.id)
-        }
 
         return NextResponse.json({
             message: 'Svar skickat',
-            messageId: sent.messageId,
+            messageId: sent.messageId || sent.message_id,
         })
     } catch (err: any) {
         console.error('[Reply Error]', err)

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Pause, XCircle, AlertTriangle, ExternalLink, Trash2, Send, Play } from 'lucide-react';
+import { ArrowLeft, Pause, XCircle, AlertTriangle, ExternalLink, Trash2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/shared/GlassCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -55,9 +55,6 @@ export default function ClaimDetailPage() {
     const [claim, setClaim] = useState<Claim | null>(null);
     const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
     const [loading, setLoading] = useState(true);
-    const [replySubject, setReplySubject] = useState('');
-    const [replyMessage, setReplyMessage] = useState('');
-    const [replySending, setReplySending] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -77,38 +74,6 @@ export default function ClaimDetailPage() {
             })
             .catch(() => setLoading(false));
     }, [id]);
-
-    const sendReply = async () => {
-        if (!replyMessage.trim()) return;
-        setReplySending(true);
-        try {
-            const res = await fetch(`/api/claims/${id}/reply`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subject: replySubject, message: replyMessage }),
-            });
-            if (res.ok) {
-                toast.success('Svar skickat!');
-                setTimeline(prev => [...prev, {
-                    step: claim?.current_step || 0,
-                    channel: 'email',
-                    direction: 'outbound',
-                    subject: replySubject || `Re: Ärende ${claim?.debtor_name}`,
-                    body: replyMessage,
-                    sentAt: formatTimelineDate(new Date().toISOString()),
-                }]);
-                setReplySubject('');
-                setReplyMessage('');
-            } else {
-                const err = await res.json().catch(() => ({}));
-                toast.error('Kunde inte skicka svar', { description: err.error });
-            }
-        } catch {
-            toast.error('Nätverksfel');
-        } finally {
-            setReplySending(false);
-        }
-    };
 
     if (loading || !claim) {
         return (
@@ -286,49 +251,17 @@ export default function ClaimDetailPage() {
             <div>
                 <h3 className="text-lg font-medium mb-6">Kommunikationshistorik</h3>
                 {timeline.length > 0 ? (
-                    <Timeline events={timeline} />
+                    <Timeline
+                        events={timeline}
+                        claimId={id}
+                        onReplySent={(reply) => setTimeline(prev => [...prev, reply])}
+                    />
                 ) : (
                     <GlassCard className="p-12 text-center">
                         <p className="text-muted-foreground">Ingen kommunikation ännu. AI-agenten kommer att skicka första påminnelsen när det är dags.</p>
                     </GlassCard>
                 )}
             </div>
-
-            {/* Reply Form — visas bara om gäldenären har svarat */}
-            {claim.status !== 'cancelled' && timeline.some(e => e.direction === 'inbound') && (
-                <GlassCard className="p-6">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Svara gäldenären</h3>
-                    <div className="space-y-3">
-                        <input
-                            type="text"
-                            placeholder="Ämnesrad (valfritt)"
-                            value={replySubject}
-                            onChange={e => setReplySubject(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-lg bg-[#ffffff06] border border-[#ffffff10] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors"
-                        />
-                        <textarea
-                            placeholder="Skriv ditt meddelande här..."
-                            value={replyMessage}
-                            onChange={e => setReplyMessage(e.target.value)}
-                            rows={4}
-                            className="w-full px-4 py-2.5 rounded-lg bg-[#ffffff06] border border-[#ffffff10] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors resize-none"
-                        />
-                        <div className="flex justify-between items-center">
-                            <p className="text-xs text-muted-foreground">Skickas via AgentMail till {claim.debtor_email}</p>
-                            <Button
-                                size="sm"
-                                disabled={!replyMessage.trim() || replySending}
-                                onClick={sendReply}
-                                className="gap-2"
-                            >
-                                <Send className="h-4 w-4" />
-                                {replySending ? 'Skickar...' : 'Skicka svar'}
-                            </Button>
-                        </div>
-                    </div>
-                </GlassCard>
-            )}
         </div>
     );
 }
-

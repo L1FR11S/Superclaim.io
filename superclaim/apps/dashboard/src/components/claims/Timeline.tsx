@@ -1,5 +1,10 @@
+'use client';
+
+import { useState } from 'react';
 import { cn } from "@/lib/utils";
-import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft } from 'lucide-react';
+import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft, Reply, Send, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface TimelineEvent {
     step: number;
@@ -10,13 +15,56 @@ interface TimelineEvent {
     sentAt: string;
     openedAt?: string | null;
     status?: 'sent' | 'draft';
+    agentmail_message_id?: string | null;
 }
 
 interface TimelineProps {
     events: TimelineEvent[];
+    claimId?: string;
+    onReplySent?: (reply: TimelineEvent) => void;
 }
 
-export function Timeline({ events }: TimelineProps) {
+export function Timeline({ events, claimId, onReplySent }: TimelineProps) {
+    const [replyingTo, setReplyingTo] = useState<number | null>(null);
+    const [replyText, setReplyText] = useState('');
+    const [sending, setSending] = useState(false);
+
+    const handleSendReply = async (event: TimelineEvent, index: number) => {
+        if (!replyText.trim() || !claimId) return;
+        setSending(true);
+        try {
+            const res = await fetch(`/api/claims/${claimId}/reply`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: replyText,
+                    messageId: event.agentmail_message_id,
+                }),
+            });
+            if (res.ok) {
+                toast.success('Svar skickat!');
+                onReplySent?.({
+                    step: event.step,
+                    channel: 'email',
+                    direction: 'outbound',
+                    subject: `Re: ${event.subject}`,
+                    body: replyText,
+                    sentAt: new Date().toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' }),
+                    status: 'sent',
+                });
+                setReplyText('');
+                setReplyingTo(null);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast.error('Kunde inte skicka svar', { description: err.error });
+            }
+        } catch {
+            toast.error('Nätverksfel');
+        } finally {
+            setSending(false);
+        }
+    };
+
     return (
         <div className="relative">
             {/* Vertical connector line */}
@@ -26,6 +74,7 @@ export function Timeline({ events }: TimelineProps) {
                 {events.map((event, i) => {
                     const isDraft = event.status === 'draft';
                     const isInbound = event.direction === 'inbound';
+                    const isReplying = replyingTo === i;
                     return (
                         <div key={i} className="relative flex gap-4 pl-2">
                             {/* Dot */}
@@ -87,27 +136,76 @@ export function Timeline({ events }: TimelineProps) {
                                 )}
                                 <p className="text-sm text-muted-foreground leading-relaxed">{event.body}</p>
 
-                                {/* Status indicators */}
-                                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[#ffffff08]">
-                                    {isInbound ? (
-                                        <span className="flex items-center gap-1.5 text-xs text-violet-400">
-                                            <ArrowDownLeft className="h-3 w-3" /> Mottaget svar
-                                        </span>
-                                    ) : isDraft ? (
-                                        <span className="flex items-center gap-1.5 text-xs text-yellow-400">
-                                            <Clock className="h-3 w-3" /> Väntar på granskning
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center gap-1.5 text-xs text-primary">
-                                            <Mail className="h-3 w-3" /> Skickat ✓
-                                        </span>
-                                    )}
-                                    {event.openedAt && (
-                                        <span className="flex items-center gap-1.5 text-xs text-[#f5c842]">
-                                            <Eye className="h-3 w-3" /> Öppnat {event.openedAt}
-                                        </span>
+                                {/* Status indicators + reply button */}
+                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#ffffff08]">
+                                    <div className="flex items-center gap-4">
+                                        {isInbound ? (
+                                            <span className="flex items-center gap-1.5 text-xs text-violet-400">
+                                                <ArrowDownLeft className="h-3 w-3" /> Mottaget svar
+                                            </span>
+                                        ) : isDraft ? (
+                                            <span className="flex items-center gap-1.5 text-xs text-yellow-400">
+                                                <Clock className="h-3 w-3" /> Väntar på granskning
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1.5 text-xs text-primary">
+                                                <Mail className="h-3 w-3" /> Skickat ✓
+                                            </span>
+                                        )}
+                                        {event.openedAt && (
+                                            <span className="flex items-center gap-1.5 text-xs text-[#f5c842]">
+                                                <Eye className="h-3 w-3" /> Öppnat {event.openedAt}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {isInbound && claimId && !isReplying && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setReplyingTo(i)}
+                                            className="h-7 text-xs text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 gap-1.5"
+                                        >
+                                            <Reply className="h-3.5 w-3.5" /> Svara
+                                        </Button>
                                     )}
                                 </div>
+
+                                {/* Inline reply form */}
+                                {isReplying && (
+                                    <div className="mt-3 pt-3 border-t border-violet-500/15 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <textarea
+                                            autoFocus
+                                            placeholder="Skriv ditt svar..."
+                                            value={replyText}
+                                            onChange={e => setReplyText(e.target.value)}
+                                            rows={3}
+                                            className="w-full px-3 py-2 rounded-lg bg-[#ffffff06] border border-violet-500/20 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/40 transition-colors resize-none"
+                                        />
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => { setReplyingTo(null); setReplyText(''); }}
+                                                className="h-7 text-xs text-muted-foreground"
+                                            >
+                                                Avbryt
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleSendReply(event, i)}
+                                                disabled={!replyText.trim() || sending}
+                                                className="h-7 text-xs gap-1.5 bg-violet-600 hover:bg-violet-500 text-white"
+                                            >
+                                                {sending ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <Send className="h-3 w-3" />
+                                                )}
+                                                {sending ? 'Skickar...' : 'Skicka svar'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );

@@ -40,7 +40,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const [unreadCount, setUnreadCount] = useState(0);
     const [pendingDraftsCount, setPendingDraftsCount] = useState(0);
     const [userEmail, setUserEmail] = useState<string>('');
+    const [userName, setUserName] = useState<string>('');
     const [orgName, setOrgName] = useState<string>('');
+    const [orgNumber, setOrgNumber] = useState<string>('');
     const [orgId, setOrgId] = useState<string>('');
     const notifRef = useRef<HTMLDivElement>(null);
     const userRef = useRef<HTMLDivElement>(null);
@@ -118,6 +120,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (user?.email) setUserEmail(user.email);
+            if (user?.user_metadata?.first_name || user?.user_metadata?.last_name) {
+                setUserName(`${user.user_metadata.first_name || ''} ${user.user_metadata.last_name || ''}`.trim());
+            }
         });
         fetch('/api/settings').then(r => r.json()).then(d => {
             if (d?.org_name) setOrgName(d.org_name);
@@ -125,8 +130,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         // Get org_id for realtime filter
         supabase.auth.getUser().then(async ({ data: { user } }) => {
             if (!user?.email) return;
-            const { data } = await supabase.from('organizations').select('id, name').eq('email', user.email).single();
+            const { data } = await supabase.from('organizations').select('id, name, org_number').eq('email', user.email).single();
             if (data?.name) setOrgName(data.name);
+            if (data?.org_number) setOrgNumber(data.org_number);
             if (data?.id) setOrgId(data.id);
         });
     }, []);
@@ -349,9 +355,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                             {showUserMenu && (
                                 <div className="absolute right-0 top-12 w-56 rounded-xl border border-[#ffffff08] bg-[#0d1a18]/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
-                                    <div className="p-4 border-b border-[#ffffff08]">
-                                        <p className="text-sm font-medium">{orgName || '—'}</p>
-                                        <p className="text-xs text-muted-foreground">{userEmail}</p>
+                                    <div className="p-4 border-b border-[#ffffff08] space-y-0.5">
+                                        <p className="text-sm font-medium">{userName || 'Profil'}</p>
+                                        <p className="text-xs text-muted-foreground">{orgName || 'Ingen organisation'}{orgNumber ? ` - ${orgNumber}` : ''}</p>
+                                        <p className="text-xs text-muted-foreground/60">{userEmail}</p>
                                     </div>
                                     <div className="py-1">
                                         {[

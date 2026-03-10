@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Zap, Mail, MessageSquare, GitBranch, Clock, AlertTriangle, Flag } from 'lucide-react';
+import { Zap, Mail, MessageSquare, GitBranch, Clock, AlertTriangle, Flag, Smile, Briefcase, Target, Check, X } from 'lucide-react';
 
 // ─── Shared styles ──────────────────────────────────
 
@@ -54,7 +54,7 @@ export const EmailNode = memo(({ data, selected }: NodeProps) => (
         {(data as any).tone && (
             <div className="px-4 pb-3">
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400/80 border border-cyan-500/15">
-                    {(data as any).tone === 'professional' ? '🏢 Professionell' : (data as any).tone === 'friendly' ? '😊 Vänlig' : '⚡ Direkt'}
+                    {(data as any).tone === 'professional' ? <><Briefcase className="h-3 w-3 inline mr-1" />Professionell</> : (data as any).tone === 'friendly' ? <><Smile className="h-3 w-3 inline mr-1" />Vänlig</> : <><Target className="h-3 w-3 inline mr-1" />Direkt</>}
                 </span>
             </div>
         )}
@@ -116,8 +116,8 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => (
             </div>
         </div>
         <div className="flex flex-col gap-0.5 px-4 pb-3 text-[10px]">
-            <span className="text-green-400">✓ Ja ↑</span>
-            <span className="text-red-400">✗ Nej ↓</span>
+            <span className="text-green-400 flex items-center gap-1"><Check className="h-3 w-3" /> Ja ↑</span>
+            <span className="text-red-400 flex items-center gap-1"><X className="h-3 w-3" /> Nej ↓</span>
         </div>
         <Handle type="source" position={Position.Right} id="yes" style={{ ...handleStyle, top: '30%' }} />
         <Handle type="source" position={Position.Right} id="no" style={{ ...handleStyle, top: '70%' }} />

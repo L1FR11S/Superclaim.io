@@ -144,9 +144,9 @@ const colorMap: Record<string, string> = {
 };
 
 const typeLabels: Record<string, string> = {
-    trigger: '⚡ Trigger', email: '📧 E-post', sms: '📱 SMS',
-    delay: '⏳ Fördröjning', condition: '🔀 Villkor',
-    escalate: '🚨 Eskalera', end: '🏁 Avslut',
+    trigger: 'Trigger', email: 'E-post', sms: 'SMS',
+    delay: 'Fördröjning', condition: 'Villkor',
+    escalate: 'Eskalera', end: 'Avslut',
 };
 
 // ─── Component ──────────────────────────────────────
@@ -413,7 +413,7 @@ export default function FlowBuilderPage() {
                                                     : 'border-[#ffffff10] text-muted-foreground hover:border-[#ffffff20]'
                                                     }`}
                                             >
-                                                {t === 'friendly' ? '😊 Vänlig' : t === 'professional' ? '🏢 Formell' : '⚡ Direkt'}
+                                                {t === 'friendly' ? 'Vänlig' : t === 'professional' ? 'Formell' : 'Direkt'}
                                             </button>
                                         ))}
                                     </div>

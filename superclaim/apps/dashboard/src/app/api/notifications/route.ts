@@ -2,12 +2,15 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
 
+/**
+ * GET /api/notifications — hämta notiser från tabellen
+ * PATCH /api/notifications — markera notiser som lästa
+ */
 export async function GET() {
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
-
-        if (!user) return NextResponse.json({ notifications: [], pendingEmailsCount: 0 })
+        if (!user) return NextResponse.json({ notifications: [], unreadCount: 0 })
 
         const admin = createAdminClient()
 
@@ -16,10 +19,24 @@ export async function GET() {
             .select('id')
             .eq('email', user.email)
             .single()
+        if (!org) return NextResponse.json({ notifications: [], unreadCount: 0 })
 
-        if (!org) return NextResponse.json({ notifications: [], pendingEmailsCount: 0 })
+        // Hämta senaste 20 notiser
+        const { data: notifications } = await admin
+            .from('notifications')
+            .select('*')
+            .eq('org_id', org.id)
+            .order('created_at', { ascending: false })
+            .limit(20)
 
-        // ─── Räkna utkast (E-post + SMS) ─────────────────────────────
+        // Räkna olästa
+        const { count: unreadCount } = await admin
+            .from('notifications')
+            .select('id', { count: 'exact', head: true })
+            .eq('org_id', org.id)
+            .is('read_at', null)
+
+        // Räkna pending drafts (för bell badge)
         const { count: pendingEmailDrafts } = await admin
             .from('email_drafts')
             .select('id', { count: 'exact', head: true })
@@ -32,99 +49,67 @@ export async function GET() {
             .eq('org_id', org.id)
             .eq('status', 'pending')
 
-        const pendingEmailsCount = (pendingEmailDrafts || 0) + (pendingSmsDrafts || 0)
-
-        // ─── Bygga notis-listan ────────────────────────────────────────
-        const notifications: {
-            id: string
-            text: string
-            time: string
-            type: 'info' | 'success' | 'warning' | 'paid'
-            href?: string
-        }[] = []
-
-        // Utkast väntar på godkännande
-        if (pendingEmailsCount > 0) {
-            notifications.push({
-                id: 'pending-drafts',
-                type: 'info',
-                text: `${pendingEmailsCount} ${pendingEmailsCount === 1 ? 'mejl/SMS väntar' : 'mejl/SMS väntar'} på godkännande`,
-                time: 'nu',
-                href: '/dashboard/drafts',
-            })
-        }
-
-        // Betalda ärenden (senaste 3)
-        const { data: paidClaims } = await admin
-            .from('claims')
-            .select('id, debtor_name, amount, currency, updated_at')
-            .eq('org_id', org.id)
-            .eq('status', 'paid')
-            .order('updated_at', { ascending: false })
-            .limit(3)
-
-        paidClaims?.forEach(c => {
-            notifications.push({
-                id: `paid-${c.id}`,
-                type: 'paid',
-                text: `${c.debtor_name} betalade ${c.amount?.toLocaleString('sv-SE')} ${c.currency}`,
-                time: c.updated_at,
-                href: `/dashboard/claims/${c.id}`,
-            })
-        })
-
-        // Eskalerade ärenden (senaste 3)
-        const { data: escalated } = await admin
-            .from('claims')
-            .select('id, debtor_name, updated_at')
-            .eq('org_id', org.id)
-            .eq('status', 'escalated')
-            .order('updated_at', { ascending: false })
-            .limit(3)
-
-        escalated?.forEach(c => {
-            notifications.push({
-                id: `escalated-${c.id}`,
-                type: 'warning',
-                text: `${c.debtor_name} har eskalerats`,
-                time: c.updated_at,
-                href: `/dashboard/claims/${c.id}`,
-            })
-        })
-
-        // Svar från gäldenär (senaste 3)
-        const { data: replies } = await admin
-            .from('claim_communications')
-            .select('id, subject, created_at, claims(debtor_name)')
-            .eq('org_id', org.id)
-            .eq('direction', 'inbound')
-            .order('created_at', { ascending: false })
-            .limit(3)
-
-        replies?.forEach(r => {
-            notifications.push({
-                id: `reply-${r.id}`,
-                type: 'info',
-                text: `Svar från ${(r as any).claims?.debtor_name || 'gäldenär'}`,
-                time: r.created_at,
-                href: '/dashboard/drafts',
-            })
-        })
-
-        notifications.sort((a, b) => {
-            if (a.time === 'nu') return -1
-            if (b.time === 'nu') return 1
-            return new Date(b.time).getTime() - new Date(a.time).getTime()
-        })
+        const pendingDraftsCount = (pendingEmailDrafts || 0) + (pendingSmsDrafts || 0)
 
         return NextResponse.json({
-            notifications: notifications.slice(0, 6),
-            pendingEmailsCount,
-            // Totalt antal aktiva ärenden (för "nya ärenden"-toasten i layout)
-            claimsCount: (paidClaims?.length || 0) + (escalated?.length || 0),
+            notifications: (notifications || []).map(n => ({
+                id: n.id,
+                type: n.type,
+                text: n.text,
+                href: n.href,
+                time: n.created_at,
+                read: !!n.read_at,
+            })),
+            unreadCount: unreadCount || 0,
+            pendingDraftsCount,
         })
     } catch (err: any) {
         console.error('[Notifications Error]', err.message)
-        return NextResponse.json({ notifications: [], pendingEmailsCount: 0, claimsCount: 0 })
+        return NextResponse.json({ notifications: [], unreadCount: 0, pendingDraftsCount: 0 })
+    }
+}
+
+/**
+ * PATCH /api/notifications — markera notiser som lästa
+ * Body: { ids: string[] } eller { all: true }
+ */
+export async function PATCH(request: Request) {
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+        const admin = createAdminClient()
+
+        const { data: org } = await admin
+            .from('organizations')
+            .select('id')
+            .eq('email', user.email)
+            .single()
+        if (!org) return NextResponse.json({ error: 'Org not found' }, { status: 404 })
+
+        const body = await request.json()
+        const now = new Date().toISOString()
+
+        if (body.all) {
+            // Markera alla som lästa
+            await admin
+                .from('notifications')
+                .update({ read_at: now })
+                .eq('org_id', org.id)
+                .is('read_at', null)
+        } else if (body.ids?.length > 0) {
+            // Markera specifika som lästa
+            await admin
+                .from('notifications')
+                .update({ read_at: now })
+                .eq('org_id', org.id)
+                .in('id', body.ids)
+        }
+
+        return NextResponse.json({ success: true })
+    } catch (err: any) {
+        console.error('[Notifications PATCH Error]', err.message)
+        return NextResponse.json({ error: err.message }, { status: 500 })
     }
 }

@@ -89,6 +89,14 @@ export async function POST(req: Request) {
                             })
                             .eq('id', claim.id)
 
+                        // Skapa realtids-notis
+                        await admin.from('notifications').insert({
+                            org_id: org.org_id,
+                            type: 'paid',
+                            text: `💰 ${claim.debtor_name} har betalat`,
+                            href: `/dashboard/claims/${claim.id}`,
+                        })
+
                         orgResult.markedPaid++
                         console.log(
                             `[fortnox/sync-payments] Claim ${claim.id} (${claim.debtor_name}) markerad som betald`

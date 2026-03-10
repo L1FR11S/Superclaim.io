@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow, FlaskConical } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { LayoutDashboard, ReceiptText, Settings, LogOut, Bell, CircleUserRound, ChevronDown, User, CreditCard, HelpCircle, BarChart3, Mail, Workflow, FlaskConical, Check } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { createBrowserClient } from '@supabase/ssr';
@@ -24,8 +24,9 @@ interface Notification {
     id: string;
     text: string;
     time: string;
-    type: 'info' | 'success' | 'warning' | 'paid';
+    type: string;
     href?: string;
+    read: boolean;
 }
 
 
@@ -34,12 +35,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const router = useRouter();
     const [showNotifications, setShowNotifications] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
-    const [notifications, setNotifications] = useState<Notification[]>([])
-    const [pendingEmailsCount, setPendingEmailsCount] = useState(0)
-    const [prevPaidCount, setPrevPaidCount] = useState(-1)
-    const [hasNotifiedEmails, setHasNotifiedEmails] = useState(false)
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [pendingDraftsCount, setPendingDraftsCount] = useState(0);
     const [userEmail, setUserEmail] = useState<string>('');
     const [orgName, setOrgName] = useState<string>('');
+    const [orgId, setOrgId] = useState<string>('');
     const notifRef = useRef<HTMLDivElement>(null);
     const userRef = useRef<HTMLDivElement>(null);
 
@@ -48,58 +49,88 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         try {
-            const res = await fetch('/api/notifications')
-            const data = await res.json()
-            setNotifications(data.notifications || [])
-            const pending: number = data.pendingEmailsCount ?? 0
-            const paidCount: number = (data.notifications || []).filter((n: Notification) => n.type === 'paid').length
-            setPendingEmailsCount(pending)
-
-            // Toast: utkast väntar
-            if (pending > 0 && !pathname.includes('/dashboard/drafts') && !hasNotifiedEmails) {
-                toast.info(`${pending} ${pending === 1 ? 'meddelande väntar' : 'meddelanden väntar'} på godkännande`, {
-                    description: 'Gå till E-post / SMS för att granska.',
-                    action: { label: 'Öppna', onClick: () => router.push('/dashboard/drafts') },
-                })
-                setHasNotifiedEmails(true)
-            }
-
-            // Toast: betalning inkommit
-            setPrevPaidCount(prev => {
-                if (prev >= 0 && paidCount > prev) {
-                    toast.success('Betalning inkommit! 🎉', {
-                        description: 'Ett ärende har markerats som betalt.',
-                        action: { label: 'Visa', onClick: () => router.push('/dashboard/claims') },
-                    })
-                }
-                return paidCount
-            })
+            const res = await fetch('/api/notifications');
+            const data = await res.json();
+            setNotifications(data.notifications || []);
+            setUnreadCount(data.unreadCount || 0);
+            setPendingDraftsCount(data.pendingDraftsCount || 0);
         } catch { /* ignore */ }
-    }
-
-    useEffect(() => {
-        fetchNotifications();
-        const interval = setInterval(fetchNotifications, 45000);
-        return () => clearInterval(interval);
-    }, [pathname]);
-
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user?.email) setUserEmail(user.email)
-        })
-        fetch('/api/settings').then(r => r.json()).then(d => {
-            if (d?.org_name) setOrgName(d.org_name)
-        }).catch(() => { })
-        // Fallback: get org name from organizations table via user
-        supabase.auth.getUser().then(async ({ data: { user } }) => {
-            if (!user?.email) return
-            const { data } = await supabase.from('organizations').select('name').eq('email', user.email).single()
-            if (data?.name) setOrgName(data.name)
-        })
     }, []);
 
+    // Initial fetch + polling fallback (var 60:e sekund)
+    useEffect(() => {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 60000);
+        return () => clearInterval(interval);
+    }, [pathname, fetchNotifications]);
+
+    // Supabase Realtime subscription
+    useEffect(() => {
+        if (!orgId) return;
+
+        const channel = supabase
+            .channel('notifications-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `org_id=eq.${orgId}`,
+                },
+                (payload) => {
+                    const n = payload.new as any;
+                    const newNotif: Notification = {
+                        id: n.id,
+                        type: n.type,
+                        text: n.text,
+                        href: n.href,
+                        time: n.created_at,
+                        read: false,
+                    };
+                    setNotifications(prev => [newNotif, ...prev].slice(0, 20));
+                    setUnreadCount(prev => prev + 1);
+
+                    // Toast
+                    if (n.type === 'reply') {
+                        toast.info(n.text, {
+                            description: 'Klicka för att visa ärendet',
+                            action: n.href ? { label: 'Visa', onClick: () => router.push(n.href) } : undefined,
+                        });
+                    } else if (n.type === 'paid') {
+                        toast.success(n.text, {
+                            action: n.href ? { label: 'Visa', onClick: () => router.push(n.href) } : undefined,
+                        });
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [orgId, supabase, router]);
+
+    // Fetch user info + org_id
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user?.email) setUserEmail(user.email);
+        });
+        fetch('/api/settings').then(r => r.json()).then(d => {
+            if (d?.org_name) setOrgName(d.org_name);
+        }).catch(() => { });
+        // Get org_id for realtime filter
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+            if (!user?.email) return;
+            const { data } = await supabase.from('organizations').select('id, name').eq('email', user.email).single();
+            if (data?.name) setOrgName(data.name);
+            if (data?.id) setOrgId(data.id);
+        });
+    }, []);
+
+    // Click outside to close
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifications(false);
@@ -109,18 +140,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const markAsRead = async (id: string) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        await fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: [id] }),
+        });
+    };
+
+    const markAllAsRead = async () => {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        setUnreadCount(0);
+        await fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ all: true }),
+        });
+    };
+
     const isActive = (href: string) => {
         if (href === '/dashboard') return pathname === '/dashboard';
         return pathname.startsWith(href);
     };
 
     const getGreeting = () => {
-        const h = new Date().getHours()
-        if (h >= 5 && h < 12) return 'God morgon ☀️'
-        if (h >= 12 && h < 17) return 'God dag 👋'
-        if (h >= 17 && h < 22) return 'God kväll 🌆'
-        return 'God natt 🌙'
+        const h = new Date().getHours();
+        if (h >= 5 && h < 12) return 'God morgon ☀️';
+        if (h >= 12 && h < 17) return 'God dag 👋';
+        if (h >= 17 && h < 22) return 'God kväll 🌆';
+        return 'God natt 🌙';
     };
+
+    const totalBadgeCount = unreadCount + pendingDraftsCount;
 
     return (
         <div className="flex min-h-screen bg-background text-foreground">
@@ -160,8 +213,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="p-3 border-t border-[#ffffff08]">
                     <button
                         onClick={async () => {
-                            await supabase.auth.signOut()
-                            window.location.href = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://superclaim.io'}/`
+                            await supabase.auth.signOut();
+                            window.location.href = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://superclaim.io'}/`;
                         }}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all w-full"
                     >
@@ -184,19 +237,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 className="relative p-3 rounded-xl text-muted-foreground/80 hover:text-foreground hover:bg-white/5 transition-all duration-200"
                             >
                                 <Bell className="h-5 w-5 stroke-[1.5]" />
-                                {(pendingEmailsCount > 0 || notifications.length > 0) && (
+                                {totalBadgeCount > 0 && (
                                     <span className="absolute top-2 right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary text-[9px] font-bold text-background shadow-[0_0_8px_rgba(0,229,204,0.4)] px-1">
-                                        {pendingEmailsCount > 0
-                                            ? (pendingEmailsCount > 9 ? '9+' : pendingEmailsCount)
-                                            : (notifications.length > 9 ? '9+' : notifications.length)}
+                                        {totalBadgeCount > 9 ? '9+' : totalBadgeCount}
                                     </span>
                                 )}
                             </button>
 
                             {showNotifications && (
                                 <div className="absolute right-0 top-12 w-80 rounded-xl border border-[#ffffff08] bg-[#0d1a18]/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
-                                    <div className="p-4 border-b border-[#ffffff08]">
+                                    <div className="p-4 border-b border-[#ffffff08] flex items-center justify-between">
                                         <h4 className="text-sm font-medium">Notifikationer</h4>
+                                        {unreadCount > 0 && (
+                                            <button
+                                                onClick={markAllAsRead}
+                                                className="text-[10px] text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                                            >
+                                                <Check className="h-3 w-3" /> Markera alla som lästa
+                                            </button>
+                                        )}
                                     </div>
                                     <div className="max-h-64 overflow-y-auto">
                                         {notifications.length === 0 ? (
@@ -205,32 +264,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                             <Link
                                                 key={n.id}
                                                 href={n.href || '#'}
-                                                onClick={() => setShowNotifications(false)}
-                                                className="block px-4 py-3 hover:bg-primary/5 transition-colors border-b border-[#ffffff05] last:border-0"
+                                                onClick={() => {
+                                                    if (!n.read) markAsRead(n.id);
+                                                    setShowNotifications(false);
+                                                }}
+                                                className={cn(
+                                                    "block px-4 py-3 hover:bg-primary/5 transition-colors border-b border-[#ffffff05] last:border-0",
+                                                    !n.read && "bg-primary/[0.03]"
+                                                )}
                                             >
                                                 <div className="flex items-start gap-3">
                                                     <div className={cn(
-                                                        "mt-1 h-2 w-2 rounded-full shrink-0",
+                                                        "mt-1 h-2 w-2 rounded-full shrink-0 transition-opacity",
+                                                        n.read ? "opacity-0" : "opacity-100",
                                                         n.type === 'paid' && "bg-[#f5c842]",
-                                                        n.type === 'success' && "bg-[#f5c842]",
+                                                        n.type === 'reply' && "bg-violet-400",
                                                         n.type === 'info' && "bg-primary",
+                                                        n.type === 'draft' && "bg-primary",
                                                         n.type === 'warning' && "bg-amber-500",
+                                                        n.type === 'escalated' && "bg-amber-500",
                                                     )} />
-                                                    <div>
-                                                        <p className="text-sm text-foreground/90">{n.text}</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={cn(
+                                                            "text-sm",
+                                                            n.read ? "text-foreground/60" : "text-foreground/90"
+                                                        )}>{n.text}</p>
                                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                                            {n.time === 'nu' ? 'just nu' : new Date(n.time).toLocaleString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                            {new Date(n.time).toLocaleString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                                         </p>
                                                     </div>
                                                 </div>
                                             </Link>
                                         ))}
                                     </div>
-                                    <div className="p-3 border-t border-[#ffffff08]">
-                                        <button className="text-xs text-primary hover:text-primary/80 transition-colors w-full text-center">
-                                            Visa alla notifikationer
-                                        </button>
-                                    </div>
+                                    {notifications.length > 0 && (
+                                        <div className="p-3 border-t border-[#ffffff08]">
+                                            <button
+                                                onClick={() => { router.push('/dashboard/notifications'); setShowNotifications(false); }}
+                                                className="text-xs text-primary hover:text-primary/80 transition-colors w-full text-center"
+                                            >
+                                                Visa alla notifikationer
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -272,8 +348,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     <div className="border-t border-[#ffffff08] py-1">
                                         <button
                                             onClick={async () => {
-                                                await supabase.auth.signOut()
-                                                window.location.href = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://superclaim.io'}/`
+                                                await supabase.auth.signOut();
+                                                window.location.href = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://superclaim.io'}/`;
                                             }}
                                             className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors w-full"
                                         >

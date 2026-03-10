@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { GlassCard } from '@/components/shared/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,14 @@ const tabs = [
 ];
 
 export default function SettingsPage() {
+    return (
+        <Suspense fallback={<div className="animate-pulse h-96 bg-[#ffffff08] rounded-xl" />}>
+            <SettingsContent />
+        </Suspense>
+    );
+}
+
+function SettingsContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const activeTab = searchParams.get('tab') || 'general';

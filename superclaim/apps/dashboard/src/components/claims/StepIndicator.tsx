@@ -123,7 +123,7 @@ export function StepIndicator({ currentStep, timeline = [] }: StepIndicatorProps
     };
 
     return (
-        <div className="flex items-center w-full gap-1">
+        <div className="flex items-center w-full">
             {steps.map((step, i) => {
                 const isCompleted = i < currentStep;
                 const isCurrent = i === currentStep;

@@ -263,7 +263,7 @@ export default function ClaimDetailPage() {
             {/* Step Indicator */}
             <GlassCard className="p-6">
                 <h3 className="text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wider">Indrivningssteg</h3>
-                <StepIndicator currentStep={claim.current_step} />
+                <StepIndicator currentStep={claim.current_step} timeline={timeline} />
             </GlassCard>
 
             {/* Timeline */}

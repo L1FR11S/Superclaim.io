@@ -46,12 +46,14 @@ export async function GET(
             .from('email_drafts')
             .select('*')
             .eq('claim_id', id)
+            .eq('status', 'pending')
             .order('created_at', { ascending: true })
 
         const { data: smsDraftRows } = await admin
             .from('sms_drafts')
             .select('*')
             .eq('claim_id', id)
+            .eq('status', 'pending')
             .order('created_at', { ascending: true })
 
         const timeline = [

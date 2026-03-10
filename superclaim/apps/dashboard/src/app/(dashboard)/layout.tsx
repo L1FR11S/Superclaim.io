@@ -355,9 +355,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     </div>
                                     <div className="py-1">
                                         {[
-                                            { icon: User, label: 'Min profil', href: '#' },
-                                            { icon: CreditCard, label: 'Fakturering', href: '#' },
-                                            { icon: HelpCircle, label: 'Hjälpcenter', href: '#' },
+                                            { icon: User, label: 'Min profil', href: '/dashboard/settings?tab=profile' },
+                                            { icon: CreditCard, label: 'Fakturering', href: '/dashboard/settings?tab=billing' },
+                                            { icon: HelpCircle, label: 'Hjälpcenter', href: 'mailto:support@superclaim.io' },
                                         ].map((item) => (
                                             <Link
                                                 key={item.label}

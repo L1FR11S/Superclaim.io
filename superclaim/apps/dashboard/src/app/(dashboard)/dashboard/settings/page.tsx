@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Save, Copy, Check, Globe, Loader2, Mail, Link2, Unlink, Download,
-    Settings, Plug, User, CreditCard, MessageSquare, Building, UserPlus, Trash2, Shield, Eye, EyeOff, Lock, Bell, Lightbulb
+    Settings, Plug, User, CreditCard, MessageSquare, Building, UserPlus, Trash2, Shield, Eye, EyeOff, Lock, Bell, Lightbulb, Bot
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -18,7 +18,8 @@ import { createClient } from '@/utils/supabase/client';
 const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'organization', label: 'Organisation', icon: Building },
-    { id: 'general', label: 'Allmänt', icon: Settings },
+    { id: 'agent', label: 'Agent', icon: Bot },
+    { id: 'channels', label: 'E-post & SMS', icon: Mail },
     { id: 'integrations', label: 'Integrationer', icon: Plug },
     { id: 'billing', label: 'Fakturering', icon: CreditCard },
 ];
@@ -568,12 +569,12 @@ function SettingsContent() {
                     </>
                 )}
 
-                {/* ───────── ALLMÄNT ───────── */}
-                {activeTab === 'general' && (
+                {/* ───────── AGENT ───────── */}
+                {activeTab === 'agent' && (
                     <>
                         <div>
-                            <h2 className="text-lg font-medium">Allmänt</h2>
-                            <p className="text-sm text-muted-foreground mt-0.5">Konfigurera agentens grundinställningar</p>
+                            <h2 className="text-lg font-medium">Agent</h2>
+                            <p className="text-sm text-muted-foreground mt-0.5">Konfigurera hur agenten hanterar ärenden</p>
                         </div>
 
                         {/* ─── Förvarning ─── */}
@@ -662,7 +663,72 @@ function SettingsContent() {
                             </div>
                         </GlassCard>
 
-                        {/* SMS Sender Name */}
+                        {/* E-postförhandsgranskning */}
+                        <GlassCard className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">E-postförhandsgranskning</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">Granska AI-genererade mejl innan de skickas</p>
+                                </div>
+                                <button
+                                    onClick={() => setEmailPreview(!emailPreview)}
+                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${emailPreview ? 'bg-primary shadow-[0_0_12px_rgba(0,229,204,0.3)]' : 'bg-[#ffffff15]'}`}
+                                >
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${emailPreview ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+                        </GlassCard>
+
+                        {/* SMS-förhandsgranskning */}
+                        <GlassCard className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">SMS-förhandsgranskning</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">Granska AI-genererade SMS innan de skickas</p>
+                                </div>
+                                <button
+                                    onClick={() => setSmsPreview(!smsPreview)}
+                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${smsPreview ? 'bg-primary shadow-[0_0_12px_rgba(0,229,204,0.3)]' : 'bg-[#ffffff15]'}`}
+                                >
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${smsPreview ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+                        </GlassCard>
+
+                        <Button
+                            onClick={handleSaveSettings}
+                            disabled={saving}
+                            className="bg-gradient-to-r from-primary to-[#00b8a3] text-background font-semibold shadow-[0_0_24px_rgba(0,229,204,0.2)] hover:shadow-[0_0_32px_rgba(0,229,204,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all h-11 px-8 disabled:opacity-50"
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                            Spara inställningar
+                        </Button>
+                    </>
+                )}
+
+                {/* ───────── E-POST & SMS ───────── */}
+                {activeTab === 'channels' && (
+                    <>
+                        <div>
+                            <h2 className="text-lg font-medium">E-post & SMS</h2>
+                            <p className="text-sm text-muted-foreground mt-0.5">Konfigurera e-postkälla och SMS-avsändare</p>
+                        </div>
+
+                        {/* Agent E-post */}
+                        {inboxId && (
+                            <GlassCard className="p-6">
+                                <h3 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Agent E-post</h3>
+                                <div className="flex items-center gap-3">
+                                    <Mail className="h-5 w-5 text-primary" />
+                                    <div>
+                                        <p className="text-sm font-mono text-primary">{inboxId}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">Din agents unika e-postadress</p>
+                                    </div>
+                                </div>
+                            </GlassCard>
+                        )}
+
+                        {/* SMS Avsändarnamn */}
                         <GlassCard className="p-6">
                             <div className="space-y-3">
                                 <div>
@@ -693,52 +759,6 @@ function SettingsContent() {
                                 )}
                             </div>
                         </GlassCard>
-
-                        {/* Email Preview */}
-                        <GlassCard className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">E-postförhandsgranskning</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Granska AI-genererade mejl innan de skickas</p>
-                                </div>
-                                <button
-                                    onClick={() => setEmailPreview(!emailPreview)}
-                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${emailPreview ? 'bg-primary shadow-[0_0_12px_rgba(0,229,204,0.3)]' : 'bg-[#ffffff15]'}`}
-                                >
-                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${emailPreview ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
-                            </div>
-                        </GlassCard>
-
-                        {/* SMS Preview */}
-                        <GlassCard className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">SMS-förhandsgranskning</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Granska AI-genererade SMS innan de skickas</p>
-                                </div>
-                                <button
-                                    onClick={() => setSmsPreview(!smsPreview)}
-                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${smsPreview ? 'bg-primary shadow-[0_0_12px_rgba(0,229,204,0.3)]' : 'bg-[#ffffff15]'}`}
-                                >
-                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${smsPreview ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
-                            </div>
-                        </GlassCard>
-
-                        {/* Agent E-post */}
-                        {inboxId && (
-                            <GlassCard className="p-6">
-                                <h3 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Agent E-post</h3>
-                                <div className="flex items-center gap-3">
-                                    <Mail className="h-5 w-5 text-primary" />
-                                    <div>
-                                        <p className="text-sm font-mono text-primary">{inboxId}</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">Din agents unika e-postadress</p>
-                                    </div>
-                                </div>
-                            </GlassCard>
-                        )}
 
                         {/* Custom Domain */}
                         <GlassCard className="p-6">

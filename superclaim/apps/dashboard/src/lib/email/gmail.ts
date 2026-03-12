@@ -101,13 +101,16 @@ export async function sendGmailEmail({
 
     // Build RFC 2822 message with MIME boundary for proper HTML email
     const boundary = `boundary_${Date.now()}`
-    const fromHeader = from ? `From: ${from}` : ''
-    const rawMessage = [
-        fromHeader,
+    const headers = [
+        ...(from ? [`From: ${from}`] : []),
         `To: ${to}`,
         `Subject: ${encodedSubject}`,
         `MIME-Version: 1.0`,
         `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ].join('\r\n')
+
+    const rawMessage = [
+        headers,
         '',
         `--${boundary}`,
         'Content-Type: text/plain; charset=utf-8',
@@ -122,7 +125,7 @@ export async function sendGmailEmail({
         Buffer.from(htmlBody, 'utf-8').toString('base64'),
         '',
         `--${boundary}--`,
-    ].filter(Boolean).join('\r\n')
+    ].join('\r\n')
 
     const encodedMessage = Buffer.from(rawMessage)
         .toString('base64')

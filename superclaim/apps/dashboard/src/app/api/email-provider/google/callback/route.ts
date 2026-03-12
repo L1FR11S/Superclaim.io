@@ -27,12 +27,16 @@ export async function GET(request: NextRequest) {
             },
         }).eq('org_id', orgId)
 
-        // Redirect back to settings with success
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
-        return NextResponse.redirect(`${baseUrl}/dashboard/settings?tab=channels&provider=google&connected=true`)
+        // Close the popup window — parent polls /api/email-provider/status on close
+        return new NextResponse(
+            `<html><body><script>window.close();</script><p>Ansluten! Du kan stänga detta fönster.</p></body></html>`,
+            { headers: { 'Content-Type': 'text/html' } }
+        )
     } catch (err: any) {
         console.error('[google-callback] Error:', err.message)
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
-        return NextResponse.redirect(`${baseUrl}/dashboard/settings?tab=channels&error=${encodeURIComponent(err.message)}`)
+        return new NextResponse(
+            `<html><body><script>window.close();</script><p>Fel: ${err.message}</p></body></html>`,
+            { headers: { 'Content-Type': 'text/html' } }
+        )
     }
 }

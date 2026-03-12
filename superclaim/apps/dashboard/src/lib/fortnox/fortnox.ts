@@ -221,37 +221,41 @@ export async function fetchInvoicePdf(orgId: string, invoiceNumber: string): Pro
     try {
         const token = await getAccessToken(orgId)
         
-        // Try multiple endpoint variants — Fortnox has both v1 and v2
-        const endpoints = [
-            `/invoices/${invoiceNumber}/print`,
-            `/invoices-v2/${invoiceNumber}/print`,
-            `/invoices/${invoiceNumber}/preview`,
-            `/invoices-v2/${invoiceNumber}/preview`,
+        // Try with different Accept headers and endpoints
+        const attempts = [
+            { endpoint: `/invoices/${invoiceNumber}/preview`, accept: undefined },
+            { endpoint: `/invoices/${invoiceNumber}/preview`, accept: 'application/pdf' },
+            { endpoint: `/invoices/${invoiceNumber}/print`, accept: undefined },
         ]
         
-        for (const endpoint of endpoints) {
-            const res = await fetch(`${FORTNOX_API_BASE}${endpoint}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/pdf',
-                },
-            })
+        for (const { endpoint, accept } of attempts) {
+            const headers: Record<string, string> = {
+                'Authorization': `Bearer ${token}`,
+            }
+            if (accept) headers['Accept'] = accept
+
+            const res = await fetch(`${FORTNOX_API_BASE}${endpoint}`, { headers })
             
-            console.log(`[Fortnox PDF] ${endpoint} → status=${res.status}, content-type=${res.headers.get('content-type')}`)
+            const ct = res.headers.get('content-type') || ''
+            console.log(`[Fortnox PDF] ${endpoint} (accept=${accept || 'none'}) → status=${res.status}, content-type=${ct}`)
             
-            if (res.ok) {
+            if (res.ok && (ct.includes('pdf') || ct.includes('octet-stream'))) {
                 const arrayBuffer = await res.arrayBuffer()
                 console.log(`[Fortnox PDF] Downloaded ${arrayBuffer.byteLength} bytes for invoice ${invoiceNumber}`)
                 if (arrayBuffer.byteLength > 0) {
                     return Buffer.from(arrayBuffer)
                 }
-            } else {
+            } else if (!res.ok) {
                 const errBody = await res.text().catch(() => '(no body)')
-                console.error(`[Fortnox PDF] ${endpoint} error body: ${errBody.substring(0, 500)}`)
+                console.error(`[Fortnox PDF] ${endpoint} error: ${errBody.substring(0, 500)}`)
+            } else {
+                // res.ok but unexpected content type — log and skip
+                const body = await res.text().catch(() => '')
+                console.log(`[Fortnox PDF] ${endpoint} returned OK but content-type=${ct}, body=${body.substring(0, 200)}`)
             }
         }
         
-        console.error(`[Fortnox PDF] All endpoints failed for invoice ${invoiceNumber}`)
+        console.error(`[Fortnox PDF] All attempts failed for invoice ${invoiceNumber}`)
         return null
     } catch (err: any) {
         console.error(`[Fortnox PDF] Error fetching PDF for invoice ${invoiceNumber}:`, err.message)

@@ -221,11 +221,12 @@ export async function fetchInvoicePdf(orgId: string, invoiceNumber: string): Pro
     try {
         const token = await getAccessToken(orgId)
         
-        // Try preview endpoint first (doesn't mark invoice as 'Sent')
-        // Falls back to print endpoint if preview fails
+        // Try multiple endpoint variants — Fortnox has both v1 and v2
         const endpoints = [
-            `/invoices/${invoiceNumber}/preview`,
             `/invoices/${invoiceNumber}/print`,
+            `/invoices-v2/${invoiceNumber}/print`,
+            `/invoices/${invoiceNumber}/preview`,
+            `/invoices-v2/${invoiceNumber}/preview`,
         ]
         
         for (const endpoint of endpoints) {
@@ -244,6 +245,9 @@ export async function fetchInvoicePdf(orgId: string, invoiceNumber: string): Pro
                 if (arrayBuffer.byteLength > 0) {
                     return Buffer.from(arrayBuffer)
                 }
+            } else {
+                const errBody = await res.text().catch(() => '(no body)')
+                console.error(`[Fortnox PDF] ${endpoint} error body: ${errBody.substring(0, 500)}`)
             }
         }
         

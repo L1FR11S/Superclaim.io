@@ -147,7 +147,7 @@ export function Timeline({ events, claimId, onReplySent, onDraftAction }: Timeli
                                                                 ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
                                                                 : "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
                                         )}>
-                                            {isInbound ? 'Svar' : isManualReply ? 'Ditt svar' : isPreReminder ? 'Påminnelse' : event.channel === 'email' ? 'E-post' : 'SMS'}
+                                            {isInbound ? 'Svar' : isManualReply ? 'Ditt svar' : isPreReminder ? `Påminnelse · ${event.channel === 'email' ? 'E-post' : 'SMS'}` : event.channel === 'email' ? 'E-post' : 'SMS'}
                                         </span>
                                         {isInbound && (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400/80 border border-rose-500/20">

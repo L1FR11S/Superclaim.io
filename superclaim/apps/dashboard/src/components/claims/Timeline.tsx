@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from "@/lib/utils";
-import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft, Reply, Send, Loader2, ChevronDown, ChevronUp, Pencil, CheckCircle, XCircle } from 'lucide-react';
+import { Mail, MessageSquare, Eye, Clock, ArrowDownLeft, Reply, Send, Loader2, ChevronDown, ChevronUp, Pencil, CheckCircle, XCircle, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { stripEmailQuote } from '@/lib/utils/stripEmailQuote';
@@ -83,6 +83,7 @@ export function Timeline({ events, claimId, onReplySent, onDraftAction }: Timeli
                     const isInbound = event.direction === 'inbound';
                     const isManualReply = !isInbound && event.subject?.startsWith('Re:');
                     const isSms = event.channel === 'sms';
+                    const isPreReminder = event.step === 0;
                     const isReplying = replyingTo === i;
                     return (
                         <div key={i} className={cn("relative flex gap-4 pl-2", isManualReply && "ml-8")}>
@@ -95,14 +96,18 @@ export function Timeline({ events, claimId, onReplySent, onDraftAction }: Timeli
                                         ? "bg-[#101a20] border-blue-500/30"
                                         : isDraft
                                             ? "bg-[#1a1810] border-yellow-500/30"
-                                            : isSms
-                                                ? "bg-[#161020] border-violet-500/30"
-                                                : "bg-[#0d1820] border-cyan-500/30"
+                                            : isPreReminder
+                                                ? "bg-[#0d1a14] border-emerald-500/30"
+                                                : isSms
+                                                    ? "bg-[#161020] border-violet-500/30"
+                                                    : "bg-[#0d1820] border-cyan-500/30"
                             )}>
                                 {isInbound ? (
                                     <ArrowDownLeft className="h-4 w-4 text-rose-400" />
                                 ) : isManualReply ? (
                                     <Reply className="h-4 w-4 text-blue-400" />
+                                ) : isPreReminder ? (
+                                    <Bell className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-emerald-400")} />
                                 ) : event.channel === 'email' ? (
                                     <Mail className={cn("h-4 w-4", isDraft ? "text-yellow-400" : "text-cyan-400")} />
                                 ) : (
@@ -119,13 +124,15 @@ export function Timeline({ events, claimId, onReplySent, onDraftAction }: Timeli
                                         ? "bg-blue-500/5 border-blue-500/15 hover:border-blue-500/30"
                                         : isDraft
                                             ? "bg-yellow-500/5 border-yellow-500/15 hover:border-yellow-500/30"
-                                            : isSms
-                                                ? "bg-violet-500/5 border-violet-500/15 hover:border-violet-500/25"
-                                                : "bg-cyan-500/5 border-cyan-500/15 hover:border-cyan-500/25"
+                                            : isPreReminder
+                                                ? "bg-emerald-500/5 border-emerald-500/15 hover:border-emerald-500/25"
+                                                : isSms
+                                                    ? "bg-violet-500/5 border-violet-500/15 hover:border-violet-500/25"
+                                                    : "bg-cyan-500/5 border-cyan-500/15 hover:border-cyan-500/25"
                             )}>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium">Steg {event.step}</span>
+                                        <span className="text-sm font-medium">{event.step === 0 ? 'Förvarning' : `Steg ${event.step}`}</span>
                                         <span className={cn(
                                             "text-xs px-2 py-0.5 rounded-full border",
                                             isInbound
@@ -134,11 +141,13 @@ export function Timeline({ events, claimId, onReplySent, onDraftAction }: Timeli
                                                     ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
                                                     : isDraft
                                                         ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                                                        : isSms
-                                                            ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
-                                                            : "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                                                        : isPreReminder
+                                                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                                            : isSms
+                                                                ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
+                                                                : "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
                                         )}>
-                                            {isInbound ? 'Svar' : isManualReply ? 'Ditt svar' : event.channel === 'email' ? 'E-post' : 'SMS'}
+                                            {isInbound ? 'Svar' : isManualReply ? 'Ditt svar' : isPreReminder ? 'Påminnelse' : event.channel === 'email' ? 'E-post' : 'SMS'}
                                         </span>
                                         {isInbound && (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400/80 border border-rose-500/20">
@@ -202,6 +211,10 @@ export function Timeline({ events, claimId, onReplySent, onDraftAction }: Timeli
                                         ) : isDraft ? (
                                             <span className="flex items-center gap-1.5 text-xs text-yellow-400">
                                                 <Clock className="h-3 w-3" /> Väntar på granskning
+                                            </span>
+                                        ) : isPreReminder ? (
+                                            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+                                                <Bell className="h-3 w-3" /> Skickat ✓
                                             </span>
                                         ) : (
                                             <span className={cn("flex items-center gap-1.5 text-xs", isSms ? "text-violet-400" : "text-cyan-400")}>

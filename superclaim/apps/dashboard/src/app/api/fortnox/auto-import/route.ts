@@ -59,11 +59,11 @@ export async function POST(req: Request) {
             // Hämta befintliga claims för att undvika dubletter
             const { data: existingClaims } = await admin
                 .from('claims')
-                .select('invoice_number')
+                .select('id, invoice_number, attachment_url')
                 .eq('org_id', org.org_id)
 
-            const existingInvoiceNumbers = new Set(
-                (existingClaims || []).map((c: any) => c.invoice_number)
+            const existingClaimsMap = new Map(
+                (existingClaims || []).map((c: any) => [c.invoice_number, c])
             )
 
             const customerCache: Record<string, any> = {}
@@ -71,7 +71,24 @@ export async function POST(req: Request) {
             for (const invoice of invoices) {
                 const invoiceNumber = String(invoice.DocumentNumber)
 
-                if (existingInvoiceNumbers.has(invoiceNumber)) {
+                const existingClaim = existingClaimsMap.get(invoiceNumber)
+                if (existingClaim) {
+                    // Claim finns redan — men saknar den PDF?
+                    if (!existingClaim.attachment_url) {
+                        try {
+                            console.log(`[Auto-import] Existing claim missing PDF, fetching for invoice ${invoiceNumber}...`)
+                            const pdfBuffer = await fetchInvoicePdf(org.org_id, invoiceNumber)
+                            if (pdfBuffer) {
+                                const url = await uploadInvoicePdf(org.org_id, invoiceNumber, pdfBuffer)
+                                if (url) {
+                                    await admin.from('claims').update({ attachment_url: url }).eq('id', existingClaim.id)
+                                    console.log(`[Auto-import] PDF backfilled for invoice ${invoiceNumber}`)
+                                }
+                            }
+                        } catch (e: any) {
+                            console.error(`[Auto-import] PDF backfill error for ${invoiceNumber}:`, e.message)
+                        }
+                    }
                     orgResult.skipped++
                     continue
                 }
@@ -146,7 +163,7 @@ export async function POST(req: Request) {
                     for (const invoice of upcomingInvoices) {
                         const invoiceNumber = String(invoice.DocumentNumber)
 
-                        if (existingInvoiceNumbers.has(invoiceNumber)) {
+                        if (existingClaimsMap.has(invoiceNumber)) {
                             continue // Already imported (overdue or pre-due)
                         }
 

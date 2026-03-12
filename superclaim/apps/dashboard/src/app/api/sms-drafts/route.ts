@@ -53,11 +53,18 @@ export async function PATCH(request: Request) {
                 return NextResponse.json({ error: `Draft not found: ${draftError?.message}`, step: 'fetch_draft' }, { status: 404 })
             }
 
+            // Fetch sender name from org_settings
+            const { data: orgSettings } = await admin
+                .from('org_settings')
+                .select('sms_sender_name')
+                .eq('org_id', draft.org_id)
+                .single()
+
             // Send SMS via 46elks
             let smsResult: Awaited<ReturnType<typeof sendSms>>
             try {
                 smsResult = await sendSms({
-                    from: (process.env.ELKS_SENDER ?? 'Superclaim').trim(),
+                    from: orgSettings?.sms_sender_name || 'Superclaim',
                     to: draft.to,
                     message: draft.body,
                 })

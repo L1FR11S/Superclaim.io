@@ -502,7 +502,9 @@ async function processPreDueReminder(
     const channels = orgSettings.pre_reminder_channels || 'email'
 
     console.log(`[Agent] Pre-due reminder for ${claim.debtor_name} — ${daysUntilDue} days until due`)
-    console.log(`[Agent] Pre-due config: channels=${channels}, debtor_email=${claim.debtor_email || 'NULL'}, debtor_phone=${claim.debtor_phone || 'NULL'}, sms_enabled=${orgSettings.sms_enabled}, email_preview=${orgSettings.email_preview}`)
+    console.log(`[Agent] Pre-due config: channels=${channels}, debtor_email=${claim.debtor_email || 'NULL'}, debtor_phone=${claim.debtor_phone || 'NULL'}, email_preview=${orgSettings.email_preview}`)
+
+    let reminderSent = false
 
     // ── Email reminder ──
     if ((channels === 'email' || channels === 'both') && claim.debtor_email) {
@@ -537,7 +539,8 @@ async function processPreDueReminder(
                     href: `/dashboard/drafts`,
                 })
 
-                result.actions.push(`🔔 ${claim.debtor_name}: Förvarnings-e-post skapad som utkast (förfaller om ${daysUntilDue}d)`)
+                result.actions.push(`${claim.debtor_name}: Förvarnings-e-post skapad som utkast (förfaller om ${daysUntilDue}d)`)
+                reminderSent = true
             } else {
                 // Send directly — same pattern as the working collection flow
                 if (orgSettings.agentmail_inbox_id) {
@@ -561,6 +564,7 @@ async function processPreDueReminder(
                     }
                     result.emailsSent++
                     result.actions.push(`Pre-due e-post skickad: "${email.subject}" → ${claim.debtor_email}`)
+                    reminderSent = true
                 }
             }
         } catch (err: any) {
@@ -568,8 +572,8 @@ async function processPreDueReminder(
         }
     }
 
-    // ── SMS reminder ──
-    if ((channels === 'sms' || channels === 'both') && claim.debtor_phone && orgSettings.sms_enabled) {
+    // ── SMS reminder ── (pre_reminder_channels styr, inte sms_enabled)
+    if ((channels === 'sms' || channels === 'both') && claim.debtor_phone) {
         try {
             const smsBody = await generatePreReminderSms({
                 debtorName: claim.debtor_name,
@@ -588,7 +592,8 @@ async function processPreDueReminder(
                     step: 0,
                     status: 'pending',
                 })
-                result.actions.push(`💬 ${claim.debtor_name}: Förvarnings-SMS skapad som utkast`)
+                result.actions.push(`${claim.debtor_name}: Förvarnings-SMS skapad som utkast`)
+                reminderSent = true
             } else {
                 const smsResult = await sendSms({
                     from: orgSettings.sms_sender_name || 'Superclaim',
@@ -606,20 +611,25 @@ async function processPreDueReminder(
                 }
                 result.smsSent++
                 result.actions.push(`Pre-due SMS skickat → ${claim.debtor_phone}`)
+                reminderSent = true
             }
         } catch (err: any) {
             result.errors.push(`Pre-reminder SMS ${claim.id}: ${err.message}`)
         }
     }
 
-    // Set next_action_at to due_date + 1 day for normal collection to start if unpaid
-    const nextCollection = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000)
-    await supabaseAdmin.from('claims').update({
-        stage: 'pre_due_sent',
-        current_step: 0,
-        next_action_at: nextCollection.toISOString(),
-        updated_at: now.toISOString(),
-    }).eq('id', claim.id)
+    // Only update stage if something was actually sent
+    if (reminderSent) {
+        const nextCollection = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000)
+        await supabaseAdmin.from('claims').update({
+            stage: 'pre_due_sent',
+            current_step: 0,
+            next_action_at: nextCollection.toISOString(),
+            updated_at: now.toISOString(),
+        }).eq('id', claim.id)
+    } else {
+        console.log(`[Agent] Pre-due: No reminder sent for ${claim.debtor_name} — no valid channel/contact info`)
+    }
 
     result.claimsProcessed++
 }

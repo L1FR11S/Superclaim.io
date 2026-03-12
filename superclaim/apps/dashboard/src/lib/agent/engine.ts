@@ -198,10 +198,10 @@ async function executeNode(
                 await supabaseAdmin.from('notifications').insert({
                     org_id: claim.org_id,
                     type: 'draft',
-                    text: `📝 E-post utkast för ${claim.debtor_name} (steg ${step}) väntar på godkännande`,
+                    text: `E-post utkast för ${claim.debtor_name} (steg ${step}) väntar på godkännande`,
                     href: `/dashboard/claims/${claim.id}`,
                 })
-                result.actions.push(`📝 E-post utkast (steg ${step}): "${email.subject}" — sparad för granskning (email_preview=true)`)
+                result.actions.push(`E-post utkast (steg ${step}): "${email.subject}" — sparad för granskning (email_preview=true)`)
             } else {
                 const sent = await sendCollectionEmail({
                     inboxId: orgSettings.agentmail_inbox_id!,
@@ -274,10 +274,10 @@ async function executeNode(
                         await supabaseAdmin.from('notifications').insert({
                             org_id: claim.org_id,
                             type: 'draft',
-                            text: `📝 SMS utkast för ${claim.debtor_name} (steg ${smsStep}) väntar på godkännande`,
+                            text: `SMS utkast för ${claim.debtor_name} (steg ${smsStep}) väntar på godkännande`,
                             href: `/dashboard/claims/${claim.id}`,
                         })
-                        result.actions.push(`📝 SMS utkast (steg ${smsStep}): Sparat för granskning (sms_preview=true)`)
+                        result.actions.push(`SMS utkast (steg ${smsStep}): Sparat för granskning (sms_preview=true)`)
                     } else {
                         const smsResult = await sendSms({
                             from: smsFrom, to: claim.debtor_phone, message: smsMessage,
@@ -524,7 +524,7 @@ async function processPreDueReminder(
                 await supabaseAdmin.from('email_drafts').insert({
                     org_id: claim.org_id,
                     claim_id: claim.id,
-                    to_email: claim.debtor_email,
+                    to: claim.debtor_email,
                     subject: email.subject,
                     body: email.body,
                     step: 0,
@@ -534,7 +534,7 @@ async function processPreDueReminder(
                 await supabaseAdmin.from('notifications').insert({
                     org_id: claim.org_id,
                     type: 'draft',
-                    text: `📝 Förvarning till ${claim.debtor_name} väntar på godkännande`,
+                    text: `Förvarning till ${claim.debtor_name} väntar på godkännande`,
                     href: `/dashboard/drafts`,
                 })
 
@@ -586,7 +586,7 @@ async function processPreDueReminder(
                 await supabaseAdmin.from('sms_drafts').insert({
                     org_id: claim.org_id,
                     claim_id: claim.id,
-                    to_phone: claim.debtor_phone,
+                    to: claim.debtor_phone,
                     body: smsBody,
                     step: 0,
                     status: 'pending',

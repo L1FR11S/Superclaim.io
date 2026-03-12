@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Save, Copy, Check, Globe, Loader2, Mail, Link2, Unlink, Download,
-    Settings, Plug, User, CreditCard, MessageSquare, Building, UserPlus, Trash2, Shield, Eye, EyeOff, Lock, Bell
+    Settings, Plug, User, CreditCard, MessageSquare, Building, UserPlus, Trash2, Shield, Eye, EyeOff, Lock, Bell, Lightbulb
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -628,28 +628,33 @@ function SettingsContent() {
                                             <Label className="text-sm text-muted-foreground">Kanal</Label>
                                             <div className="flex gap-2">
                                                 {[
-                                                    { value: 'email' as const, label: '📧 E-post' },
-                                                    { value: 'sms' as const, label: '💬 SMS' },
-                                                    { value: 'both' as const, label: '📧 + 💬 Båda' },
+                                                    { value: 'email' as const, icon: <Mail className="h-3.5 w-3.5" />, label: 'E-post' },
+                                                    { value: 'sms' as const, icon: <MessageSquare className="h-3.5 w-3.5" />, label: 'SMS' },
+                                                    { value: 'both' as const, icon: null, label: '' },
                                                 ].map((ch) => (
                                                     <button
                                                         key={ch.value}
                                                         onClick={() => setPreReminderChannels(ch.value)}
-                                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
                                                             preReminderChannels === ch.value
                                                                 ? 'bg-primary/20 text-primary border border-primary/30 shadow-[0_0_8px_rgba(0,229,204,0.15)]'
                                                                 : 'bg-[#ffffff06] text-muted-foreground border border-[#ffffff08] hover:border-[#ffffff15]'
                                                         }`}
                                                     >
-                                                        {ch.label}
+                                                        {ch.value === 'both' ? (
+                                                            <><Mail className="h-3.5 w-3.5" /> + <MessageSquare className="h-3.5 w-3.5" /> Båda</>
+                                                        ) : (
+                                                            <>{ch.icon} {ch.label}</>
+                                                        )}
                                                     </button>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        <div className="bg-primary/5 border border-primary/10 rounded-xl p-3">
+                                        <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 flex gap-2">
+                                            <Lightbulb className="h-4 w-4 text-primary/80 shrink-0 mt-0.5" />
                                             <p className="text-xs text-primary/80">
-                                                💡 Exempel: &quot;Hej! Vi vill påminna om att faktura #1234 på 45 000 kr förfaller om {preReminderDays} dagar. Betala gärna i tid så slipper ni extra avgifter.&quot;
+                                                Exempel: &quot;Hej! Vi vill påminna om att faktura #1234 på 45 000 kr förfaller om {preReminderDays} dagar. Betala gärna i tid så slipper ni extra avgifter.&quot;
                                             </p>
                                         </div>
                                     </div>
@@ -682,8 +687,8 @@ function SettingsContent() {
                                     <span className="text-xs text-muted-foreground">{smsSenderName.length}/11</span>
                                 </div>
                                 {smsSenderName && (
-                                    <p className="text-xs text-primary/60 animate-in fade-in duration-200">
-                                        💡 Mottagaren ser &quot;{smsSenderName}&quot; som avsändare istället för ett telefonnummer.
+                                    <p className="text-xs text-primary/60 animate-in fade-in duration-200 flex items-center gap-1.5">
+                                        <Lightbulb className="h-3.5 w-3.5 shrink-0" /> Mottagaren ser &quot;{smsSenderName}&quot; som avsändare istället för ett telefonnummer.
                                     </p>
                                 )}
                             </div>

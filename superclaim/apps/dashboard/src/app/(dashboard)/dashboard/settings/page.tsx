@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-    Save, Copy, Check, Globe, Loader2, Mail, Link2, Unlink, Download,
+    Save, Copy, Check, Globe, Loader2, Mail, Link2, Unlink, Download, FileText,
     Settings, Plug, User, CreditCard, MessageSquare, Building, UserPlus, Trash2, Shield, Eye, EyeOff, Lock, Bell, Lightbulb, Bot
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -1205,6 +1205,21 @@ function SettingsContent() {
                                             className="border-[#ffffff10] hover:bg-[#1e7e34]/10 hover:text-[#1e7e34] hover:border-[#1e7e34]/30"
                                         >
                                             {importLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Download className="h-4 w-4 mr-1" /> Hämta fakturor</>}
+                                        </Button>
+                                        <Button size="sm" variant="outline"
+                                            onClick={async () => {
+                                                try {
+                                                    toast.info('Hämtar PDF-fakturor...');
+                                                    const res = await fetch('/api/fortnox/sync-pdfs', { method: 'POST' });
+                                                    const data = await res.json();
+                                                    if (res.ok) {
+                                                        toast.success(data.message);
+                                                    } else toast.error(data.error || 'Synk misslyckades');
+                                                } catch { toast.error('Nätverksfel'); }
+                                            }}
+                                            className="border-[#ffffff10] hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+                                        >
+                                            <FileText className="h-4 w-4 mr-1" /> Synka PDF
                                         </Button>
                                     </div>
                                     <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">

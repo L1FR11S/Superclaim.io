@@ -35,6 +35,15 @@ interface OrgSettings {
     pre_reminder_enabled?: boolean
     pre_reminder_days?: number
     pre_reminder_channels?: 'email' | 'sms' | 'both'
+    email_provider?: 'agentmail' | 'google' | 'microsoft' | 'custom_domain'
+    email_provider_address?: string | null
+    email_provider_tokens?: {
+        access_token?: string
+        refresh_token?: string
+        expiry_date?: number
+        expires_on?: string
+        account?: any
+    } | null
 }
 
 interface Claim {
@@ -661,6 +670,9 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
             pre_reminder_enabled: settings?.pre_reminder_enabled ?? false,
             pre_reminder_days: settings?.pre_reminder_days ?? 5,
             pre_reminder_channels: settings?.pre_reminder_channels ?? 'email',
+            email_provider: settings?.email_provider ?? 'agentmail',
+            email_provider_address: settings?.email_provider_address ?? null,
+            email_provider_tokens: settings?.email_provider_tokens ?? null,
         }
 
         const stepDelays = settings?.step_delays ?? { step1: 3, step2: 7, step3: 7, step4: 8 }

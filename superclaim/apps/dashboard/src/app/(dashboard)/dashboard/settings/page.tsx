@@ -85,7 +85,9 @@ function SettingsContent() {
     // Email provider state
     const [emailProvider, setEmailProvider] = useState<'agentmail' | 'google' | 'microsoft' | 'custom_domain'>('agentmail');
     const [emailProviderAddress, setEmailProviderAddress] = useState<string | null>(null);
-    const [emailProviderLoading, setEmailProviderLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const [microsoftLoading, setMicrosoftLoading] = useState(false);
+    const [connections, setConnections] = useState<{ google?: { email: string } | null; microsoft?: { email: string } | null }>({});
 
     // Fortnox state
     const [fortnoxConnected, setFortnoxConnected] = useState(false);
@@ -137,6 +139,7 @@ function SettingsContent() {
             .then(data => {
                 if (data.provider) setEmailProvider(data.provider);
                 if (data.address) setEmailProviderAddress(data.address);
+                if (data.connections) setConnections(data.connections);
             })
             .catch(() => { });
 
@@ -741,10 +744,12 @@ function SettingsContent() {
                                 <div className="space-y-2">
                                     {/* AgentMail */}
                                     <button
-                                        onClick={() => {
+                                        onClick={async () => {
                                             if (emailProvider !== 'agentmail') {
-                                                fetch('/api/email-provider/disconnect', { method: 'POST' })
-                                                    .then(() => { setEmailProvider('agentmail'); setEmailProviderAddress(null); })
+                                                await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email_provider: 'agentmail' }) });
+                                                setEmailProvider('agentmail');
+                                                setEmailProviderAddress(null);
+                                                toast.success('AgentMail vald som e-postkälla');
                                             }
                                         }}
                                         className={`w-full text-left p-4 rounded-xl border transition-all ${
@@ -773,7 +778,19 @@ function SettingsContent() {
                                             : 'bg-[#ffffff04] border-[#ffffff08]'
                                     }`}>
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
+                                            <button
+                                                className="flex items-center gap-3 flex-1 text-left"
+                                                onClick={async () => {
+                                                    if (connections.google) {
+                                                        // Already connected — just switch active provider
+                                                        await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email_provider: 'google', email_provider_address: connections.google.email }) });
+                                                        setEmailProvider('google');
+                                                        setEmailProviderAddress(connections.google.email);
+                                                        toast.success('Google vald som e-postkälla');
+                                                    }
+                                                }}
+                                                disabled={!connections.google}
+                                            >
                                                 <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
                                                     emailProvider === 'google' ? 'border-primary' : 'border-[#ffffff30]'
                                                 }`}>
@@ -782,60 +799,63 @@ function SettingsContent() {
                                                 <div>
                                                     <p className="text-sm font-medium">Google Workspace</p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {emailProvider === 'google' && emailProviderAddress
-                                                            ? <span className="text-primary">{emailProviderAddress}</span>
+                                                        {connections.google
+                                                            ? <span className="text-primary">{connections.google.email}</span>
                                                             : 'Skicka mejl från din Gmail / Google Workspace'}
                                                     </p>
                                                 </div>
+                                            </button>
+                                            <div className="flex items-center gap-1.5">
+                                                {connections.google ? (
+                                                    <Button
+                                                        size="sm" variant="outline"
+                                                        onClick={async () => {
+                                                            await fetch('/api/email-provider/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: 'google' }) });
+                                                            setConnections(c => ({ ...c, google: null }));
+                                                            if (emailProvider === 'google') { setEmailProvider('agentmail'); setEmailProviderAddress(null); }
+                                                            toast.success('Google frånkopplad');
+                                                        }}
+                                                        className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
+                                                    >
+                                                        <Unlink className="h-3.5 w-3.5 mr-1" /> Koppla från
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        disabled={googleLoading}
+                                                        onClick={async () => {
+                                                            setGoogleLoading(true);
+                                                            try {
+                                                                const res = await fetch('/api/email-provider/google/connect');
+                                                                const data = await res.json();
+                                                                if (data.url) {
+                                                                    const w = 600, h = 700;
+                                                                    const left = window.screenX + (window.innerWidth - w) / 2;
+                                                                    const top = window.screenY + (window.innerHeight - h) / 2;
+                                                                    const popup = window.open(data.url, 'google_oauth', `width=${w},height=${h},left=${left},top=${top}`);
+                                                                    const interval = setInterval(() => {
+                                                                        if (popup?.closed) {
+                                                                            clearInterval(interval);
+                                                                            fetch('/api/email-provider/status').then(r => r.json()).then(d => {
+                                                                                if (d.connections?.google) {
+                                                                                    setConnections(c => ({ ...c, google: d.connections.google }));
+                                                                                    setEmailProvider('google');
+                                                                                    setEmailProviderAddress(d.connections.google.email);
+                                                                                    toast.success('Gmail ansluten!');
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    }, 500);
+                                                                }
+                                                            } catch { toast.error('Kunde inte ansluta Google'); }
+                                                            finally { setGoogleLoading(false); }
+                                                        }}
+                                                        className="bg-primary/20 text-primary hover:bg-primary/30 text-xs"
+                                                    >
+                                                        {googleLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Link2 className="h-3.5 w-3.5 mr-1" /> Anslut</>}
+                                                    </Button>
+                                                )}
                                             </div>
-                                            {emailProvider === 'google' ? (
-                                                <Button
-                                                    size="sm" variant="outline"
-                                                    onClick={async () => {
-                                                        await fetch('/api/email-provider/disconnect', { method: 'POST' });
-                                                        setEmailProvider('agentmail');
-                                                        setEmailProviderAddress(null);
-                                                        toast.success('Google frånkopplad');
-                                                    }}
-                                                    className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
-                                                >
-                                                    <Unlink className="h-3.5 w-3.5 mr-1" /> Koppla från
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    size="sm"
-                                                    disabled={emailProviderLoading}
-                                                    onClick={async () => {
-                                                        setEmailProviderLoading(true);
-                                                        try {
-                                                            const res = await fetch('/api/email-provider/google/connect');
-                                                            const data = await res.json();
-                                                            if (data.url) {
-                                                                const w = 600, h = 700;
-                                                                const left = window.screenX + (window.innerWidth - w) / 2;
-                                                                const top = window.screenY + (window.innerHeight - h) / 2;
-                                                                const popup = window.open(data.url, 'google_oauth', `width=${w},height=${h},left=${left},top=${top}`);
-                                                                const interval = setInterval(() => {
-                                                                    if (popup?.closed) {
-                                                                        clearInterval(interval);
-                                                                        fetch('/api/email-provider/status').then(r => r.json()).then(d => {
-                                                                            if (d.provider === 'google') {
-                                                                                setEmailProvider('google');
-                                                                                setEmailProviderAddress(d.address);
-                                                                                toast.success('Gmail ansluten!');
-                                                                            }
-                                                                        });
-                                                                    }
-                                                                }, 500);
-                                                            }
-                                                        } catch { toast.error('Kunde inte ansluta Google'); }
-                                                        finally { setEmailProviderLoading(false); }
-                                                    }}
-                                                    className="bg-primary/20 text-primary hover:bg-primary/30 text-xs"
-                                                >
-                                                    {emailProviderLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Link2 className="h-3.5 w-3.5 mr-1" /> Anslut</>}
-                                                </Button>
-                                            )}
                                         </div>
                                     </div>
 
@@ -846,7 +866,18 @@ function SettingsContent() {
                                             : 'bg-[#ffffff04] border-[#ffffff08]'
                                     }`}>
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
+                                            <button
+                                                className="flex items-center gap-3 flex-1 text-left"
+                                                onClick={async () => {
+                                                    if (connections.microsoft) {
+                                                        await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email_provider: 'microsoft', email_provider_address: connections.microsoft.email }) });
+                                                        setEmailProvider('microsoft');
+                                                        setEmailProviderAddress(connections.microsoft.email);
+                                                        toast.success('Microsoft vald som e-postkälla');
+                                                    }
+                                                }}
+                                                disabled={!connections.microsoft}
+                                            >
                                                 <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
                                                     emailProvider === 'microsoft' ? 'border-primary' : 'border-[#ffffff30]'
                                                 }`}>
@@ -855,60 +886,63 @@ function SettingsContent() {
                                                 <div>
                                                     <p className="text-sm font-medium">Microsoft 365</p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {emailProvider === 'microsoft' && emailProviderAddress
-                                                            ? <span className="text-primary">{emailProviderAddress}</span>
+                                                        {connections.microsoft
+                                                            ? <span className="text-primary">{connections.microsoft.email}</span>
                                                             : 'Skicka mejl från din Outlook / Microsoft 365'}
                                                     </p>
                                                 </div>
+                                            </button>
+                                            <div className="flex items-center gap-1.5">
+                                                {connections.microsoft ? (
+                                                    <Button
+                                                        size="sm" variant="outline"
+                                                        onClick={async () => {
+                                                            await fetch('/api/email-provider/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: 'microsoft' }) });
+                                                            setConnections(c => ({ ...c, microsoft: null }));
+                                                            if (emailProvider === 'microsoft') { setEmailProvider('agentmail'); setEmailProviderAddress(null); }
+                                                            toast.success('Microsoft frånkopplad');
+                                                        }}
+                                                        className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
+                                                    >
+                                                        <Unlink className="h-3.5 w-3.5 mr-1" /> Koppla från
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        disabled={microsoftLoading}
+                                                        onClick={async () => {
+                                                            setMicrosoftLoading(true);
+                                                            try {
+                                                                const res = await fetch('/api/email-provider/microsoft/connect');
+                                                                const data = await res.json();
+                                                                if (data.url) {
+                                                                    const w = 600, h = 700;
+                                                                    const left = window.screenX + (window.innerWidth - w) / 2;
+                                                                    const top = window.screenY + (window.innerHeight - h) / 2;
+                                                                    const popup = window.open(data.url, 'microsoft_oauth', `width=${w},height=${h},left=${left},top=${top}`);
+                                                                    const interval = setInterval(() => {
+                                                                        if (popup?.closed) {
+                                                                            clearInterval(interval);
+                                                                            fetch('/api/email-provider/status').then(r => r.json()).then(d => {
+                                                                                if (d.connections?.microsoft) {
+                                                                                    setConnections(c => ({ ...c, microsoft: d.connections.microsoft }));
+                                                                                    setEmailProvider('microsoft');
+                                                                                    setEmailProviderAddress(d.connections.microsoft.email);
+                                                                                    toast.success('Microsoft 365 ansluten!');
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    }, 500);
+                                                                }
+                                                            } catch { toast.error('Kunde inte ansluta Microsoft'); }
+                                                            finally { setMicrosoftLoading(false); }
+                                                        }}
+                                                        className="bg-primary/20 text-primary hover:bg-primary/30 text-xs"
+                                                    >
+                                                        {microsoftLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Link2 className="h-3.5 w-3.5 mr-1" /> Anslut</>}
+                                                    </Button>
+                                                )}
                                             </div>
-                                            {emailProvider === 'microsoft' ? (
-                                                <Button
-                                                    size="sm" variant="outline"
-                                                    onClick={async () => {
-                                                        await fetch('/api/email-provider/disconnect', { method: 'POST' });
-                                                        setEmailProvider('agentmail');
-                                                        setEmailProviderAddress(null);
-                                                        toast.success('Microsoft frånkopplad');
-                                                    }}
-                                                    className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
-                                                >
-                                                    <Unlink className="h-3.5 w-3.5 mr-1" /> Koppla från
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    size="sm"
-                                                    disabled={emailProviderLoading}
-                                                    onClick={async () => {
-                                                        setEmailProviderLoading(true);
-                                                        try {
-                                                            const res = await fetch('/api/email-provider/microsoft/connect');
-                                                            const data = await res.json();
-                                                            if (data.url) {
-                                                                const w = 600, h = 700;
-                                                                const left = window.screenX + (window.innerWidth - w) / 2;
-                                                                const top = window.screenY + (window.innerHeight - h) / 2;
-                                                                const popup = window.open(data.url, 'microsoft_oauth', `width=${w},height=${h},left=${left},top=${top}`);
-                                                                const interval = setInterval(() => {
-                                                                    if (popup?.closed) {
-                                                                        clearInterval(interval);
-                                                                        fetch('/api/email-provider/status').then(r => r.json()).then(d => {
-                                                                            if (d.provider === 'microsoft') {
-                                                                                setEmailProvider('microsoft');
-                                                                                setEmailProviderAddress(d.address);
-                                                                                toast.success('Microsoft 365 ansluten!');
-                                                                            }
-                                                                        });
-                                                                    }
-                                                                }, 500);
-                                                            }
-                                                        } catch { toast.error('Kunde inte ansluta Microsoft'); }
-                                                        finally { setEmailProviderLoading(false); }
-                                                    }}
-                                                    className="bg-primary/20 text-primary hover:bg-primary/30 text-xs"
-                                                >
-                                                    {emailProviderLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Link2 className="h-3.5 w-3.5 mr-1" /> Anslut</>}
-                                                </Button>
-                                            )}
                                         </div>
                                     </div>
                                 </div>

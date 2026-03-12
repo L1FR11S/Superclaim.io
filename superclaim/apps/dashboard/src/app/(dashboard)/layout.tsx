@@ -203,7 +203,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return 'God natt 🌙';
     };
 
-    const totalBadgeCount = unreadCount + pendingDraftsCount;
+    const totalBadgeCount = unreadCount;
 
     return (
         <div className="flex min-h-screen bg-background text-foreground">

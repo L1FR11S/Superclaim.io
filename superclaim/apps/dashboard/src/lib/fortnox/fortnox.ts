@@ -212,3 +212,63 @@ export async function fetchCompanyInfo(orgId: string) {
     const data = await fortnoxGet(token, '/companyinformation')
     return data.CompanyInformation
 }
+
+/**
+ * Fetch invoice PDF from Fortnox
+ * Returns the PDF as a Buffer, or null if not available
+ */
+export async function fetchInvoicePdf(orgId: string, invoiceNumber: string): Promise<Buffer | null> {
+    try {
+        const token = await getAccessToken(orgId)
+        const res = await fetch(`${FORTNOX_API_BASE}/invoices/${invoiceNumber}/print`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/pdf',
+            },
+        })
+        if (!res.ok) {
+            console.error(`[Fortnox PDF] Failed to fetch PDF for invoice ${invoiceNumber}: ${res.status}`)
+            return null
+        }
+        const arrayBuffer = await res.arrayBuffer()
+        return Buffer.from(arrayBuffer)
+    } catch (err: any) {
+        console.error(`[Fortnox PDF] Error fetching PDF for invoice ${invoiceNumber}:`, err.message)
+        return null
+    }
+}
+
+/**
+ * Upload invoice PDF to Supabase Storage and return public URL
+ */
+export async function uploadInvoicePdf(
+    orgId: string,
+    invoiceNumber: string,
+    pdfBuffer: Buffer
+): Promise<string | null> {
+    try {
+        const filePath = `${orgId}/${invoiceNumber}.pdf`
+        const admin = createAdminClient()
+        
+        const { error } = await admin.storage
+            .from('invoices')
+            .upload(filePath, pdfBuffer, {
+                contentType: 'application/pdf',
+                upsert: true,
+            })
+
+        if (error) {
+            console.error(`[Storage] Upload error for ${filePath}:`, error.message)
+            return null
+        }
+
+        const { data } = admin.storage
+            .from('invoices')
+            .getPublicUrl(filePath)
+
+        return data.publicUrl
+    } catch (err: any) {
+        console.error(`[Storage] Error uploading PDF:`, err.message)
+        return null
+    }
+}

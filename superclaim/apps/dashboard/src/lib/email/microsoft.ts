@@ -81,25 +81,36 @@ export async function sendMicrosoftEmail({
     to,
     subject,
     body,
+    attachments,
 }: {
     accessToken: string
     to: string
     subject: string
     body: string
+    attachments?: { filename: string; content: Buffer; contentType: string }[]
 }) {
+    const message: any = {
+        subject,
+        body: { contentType: 'HTML', content: wrapBodyAsHtml(body) },
+        toRecipients: [{ emailAddress: { address: to } }],
+    }
+
+    if (attachments && attachments.length > 0) {
+        message.attachments = attachments.map(att => ({
+            '@odata.type': '#microsoft.graph.fileAttachment',
+            name: att.filename,
+            contentType: att.contentType,
+            contentBytes: att.content.toString('base64'),
+        }))
+    }
+
     const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            message: {
-                subject,
-                body: { contentType: 'HTML', content: wrapBodyAsHtml(body) },
-                toRecipients: [{ emailAddress: { address: to } }],
-            },
-        }),
+        body: JSON.stringify({ message }),
     })
 
     if (!res.ok) {

@@ -1,7 +1,31 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { generateCollectionEmail, generateCollectionSms, generatePreReminderEmail, generatePreReminderSms } from './gemini'
 import { sendEmailViaProvider } from '@/lib/email/send'
+import type { EmailAttachment } from '@/lib/email/send'
 import { sendSms } from '@/lib/sms/elks'
+
+// ─── Helpers ────────────────────────────────────────
+
+/**
+ * Fetch PDF attachment from claim's attachment_url (Supabase Storage)
+ * Returns EmailAttachment array (empty if no attachment or download fails)
+ */
+async function getClaimAttachments(claim: { attachment_url: string | null; invoice_number: string }): Promise<EmailAttachment[]> {
+    if (!claim.attachment_url) return []
+    try {
+        const res = await fetch(claim.attachment_url)
+        if (!res.ok) return []
+        const arrayBuffer = await res.arrayBuffer()
+        return [{
+            filename: `Faktura-${claim.invoice_number}.pdf`,
+            content: Buffer.from(arrayBuffer),
+            contentType: 'application/pdf',
+        }]
+    } catch {
+        console.error(`[ENGINE] Failed to fetch attachment for claim ${claim.invoice_number}`)
+        return []
+    }
+}
 
 // ─── Types ──────────────────────────────────────────
 
@@ -218,9 +242,10 @@ async function executeNode(
                 })
                 result.actions.push(`E-post utkast (steg ${step}): "${email.subject}" — sparad för granskning (email_preview=true)`)
             } else {
+                const attachments = await getClaimAttachments(claim)
                 const sent = await sendEmailViaProvider({
                     to: claim.debtor_email, subject: email.subject, body: email.body,
-                    orgSettings,
+                    orgSettings, attachments,
                 })
                 await supabaseAdmin.from('claim_communications').insert({
                     claim_id: claim.id, org_id: claim.org_id,
@@ -445,9 +470,10 @@ async function processClaimLegacy(
             step: nextStep, status: 'pending',
         })
     } else {
+        const attachments = await getClaimAttachments(claim)
         const sent = await sendEmailViaProvider({
             to: claim.debtor_email, subject: email.subject, body: email.body,
-            orgSettings,
+            orgSettings, attachments,
         })
         await supabaseAdmin.from('claim_communications').insert({
             claim_id: claim.id, org_id: claim.org_id,
@@ -557,11 +583,12 @@ async function processPreDueReminder(
                 reminderSent = true
             } else {
                 // Send directly via selected provider
+                const attachments = await getClaimAttachments(claim)
                 const sent = await sendEmailViaProvider({
                     to: claim.debtor_email,
                     subject: email.subject,
                     body: email.body,
-                    orgSettings,
+                    orgSettings, attachments,
                 })
                 await supabaseAdmin.from('claim_communications').insert({
                     claim_id: claim.id, org_id: claim.org_id,

@@ -10,6 +10,12 @@ import { sendCollectionEmail } from './agentmail'
 import { sendGmailEmail, refreshGoogleToken } from './gmail'
 import { sendMicrosoftEmail } from './microsoft'
 
+export interface EmailAttachment {
+    filename: string
+    content: Buffer
+    contentType: string
+}
+
 interface OrgEmailSettings {
     email_provider?: 'agentmail' | 'google' | 'microsoft' | 'custom_domain'
     email_provider_address?: string | null
@@ -35,6 +41,7 @@ interface SendEmailParams {
     subject: string
     body: string
     orgSettings: OrgEmailSettings
+    attachments?: EmailAttachment[]
 }
 
 export async function sendEmailViaProvider({
@@ -42,6 +49,7 @@ export async function sendEmailViaProvider({
     subject,
     body,
     orgSettings,
+    attachments,
 }: SendEmailParams): Promise<{ messageId: string; threadId: string }> {
     const provider = orgSettings.email_provider || 'agentmail'
 
@@ -66,6 +74,7 @@ export async function sendEmailViaProvider({
                 subject,
                 body,
                 from: tokens.email || orgSettings.email_provider_address || undefined,
+                attachments,
             })
         }
 
@@ -80,6 +89,7 @@ export async function sendEmailViaProvider({
                 to,
                 subject,
                 body,
+                attachments,
             })
         }
 
@@ -94,6 +104,7 @@ export async function sendEmailViaProvider({
                 to,
                 subject,
                 body,
+                attachments,
             })
         }
     }

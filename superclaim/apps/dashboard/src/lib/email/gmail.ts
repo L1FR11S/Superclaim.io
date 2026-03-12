@@ -81,6 +81,7 @@ export async function sendGmailEmail({
     subject,
     body,
     from,
+    attachments,
 }: {
     accessToken: string
     refreshToken: string
@@ -88,6 +89,7 @@ export async function sendGmailEmail({
     subject: string
     body: string
     from?: string
+    attachments?: { filename: string; content: Buffer; contentType: string }[]
 }) {
     oauth2Client.setCredentials({
         access_token: accessToken,
@@ -99,33 +101,88 @@ export async function sendGmailEmail({
     const htmlBody = wrapBodyAsHtml(body)
     const encodedSubject = encodeSubject(subject)
 
-    // Build RFC 2822 message with MIME boundary for proper HTML email
-    const boundary = `boundary_${Date.now()}`
-    const headers = [
-        ...(from ? [`From: ${from}`] : []),
-        `To: ${to}`,
-        `Subject: ${encodedSubject}`,
-        `MIME-Version: 1.0`,
-        `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    ].join('\r\n')
+    const hasAttachments = attachments && attachments.length > 0
+    const altBoundary = `alt_${Date.now()}`
+    const mixedBoundary = `mixed_${Date.now()}`
 
-    const rawMessage = [
-        headers,
+    // Build the text/html alternative part
+    const alternativePart = [
+        `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
         '',
-        `--${boundary}`,
+        `--${altBoundary}`,
         'Content-Type: text/plain; charset=utf-8',
         'Content-Transfer-Encoding: base64',
         '',
         Buffer.from(body, 'utf-8').toString('base64'),
         '',
-        `--${boundary}`,
+        `--${altBoundary}`,
         'Content-Type: text/html; charset=utf-8',
         'Content-Transfer-Encoding: base64',
         '',
         Buffer.from(htmlBody, 'utf-8').toString('base64'),
         '',
-        `--${boundary}--`,
+        `--${altBoundary}--`,
     ].join('\r\n')
+
+    let rawMessage: string
+
+    if (hasAttachments) {
+        // Multipart/mixed: alternative body + attachments
+        const headers = [
+            ...(from ? [`From: ${from}`] : []),
+            `To: ${to}`,
+            `Subject: ${encodedSubject}`,
+            `MIME-Version: 1.0`,
+            `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
+        ].join('\r\n')
+
+        const attachmentParts = attachments.map(att => [
+            `--${mixedBoundary}`,
+            `Content-Type: ${att.contentType}; name="${att.filename}"`,
+            `Content-Disposition: attachment; filename="${att.filename}"`,
+            'Content-Transfer-Encoding: base64',
+            '',
+            att.content.toString('base64'),
+        ].join('\r\n')).join('\r\n')
+
+        rawMessage = [
+            headers,
+            '',
+            `--${mixedBoundary}`,
+            alternativePart,
+            '',
+            attachmentParts,
+            '',
+            `--${mixedBoundary}--`,
+        ].join('\r\n')
+    } else {
+        // No attachments — just multipart/alternative
+        const headers = [
+            ...(from ? [`From: ${from}`] : []),
+            `To: ${to}`,
+            `Subject: ${encodedSubject}`,
+            `MIME-Version: 1.0`,
+            `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+        ].join('\r\n')
+
+        rawMessage = [
+            headers,
+            '',
+            `--${altBoundary}`,
+            'Content-Type: text/plain; charset=utf-8',
+            'Content-Transfer-Encoding: base64',
+            '',
+            Buffer.from(body, 'utf-8').toString('base64'),
+            '',
+            `--${altBoundary}`,
+            'Content-Type: text/html; charset=utf-8',
+            'Content-Transfer-Encoding: base64',
+            '',
+            Buffer.from(htmlBody, 'utf-8').toString('base64'),
+            '',
+            `--${altBoundary}--`,
+        ].join('\r\n')
+    }
 
     const encodedMessage = Buffer.from(rawMessage)
         .toString('base64')

@@ -72,12 +72,23 @@ export async function sendCollectionEmail(params: {
     to: string
     subject: string
     body: string
+    attachments?: { filename: string; content: Buffer; contentType: string }[]
 }) {
-    const result = await getClient().inboxes.messages.send(params.inboxId, {
+    const messageParams: any = {
         to: params.to,
         subject: params.subject,
         text: params.body,
-    })
+    }
+
+    if (params.attachments && params.attachments.length > 0) {
+        messageParams.attachments = params.attachments.map(att => ({
+            filename: att.filename,
+            content: att.content.toString('base64'),
+            contentType: att.contentType,
+        }))
+    }
+
+    const result = await getClient().inboxes.messages.send(params.inboxId, messageParams)
     return result
 }
 

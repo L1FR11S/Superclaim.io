@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
-import { fetchOverdueInvoices, fetchUpcomingInvoices, fetchCustomer } from '@/lib/fortnox/fortnox'
+import { fetchOverdueInvoices, fetchUpcomingInvoices, fetchCustomer, fetchInvoicePdf, uploadInvoicePdf } from '@/lib/fortnox/fortnox'
 import { verifyQStashRequest } from '@/lib/qstash'
 
 /**
@@ -88,6 +88,15 @@ export async function POST(req: Request) {
                     }
                     const customer = customerCache[customerNumber]
 
+                    // Hämta och spara faktura-PDF
+                    let attachmentUrl: string | null = null
+                    try {
+                        const pdfBuffer = await fetchInvoicePdf(org.org_id, invoiceNumber)
+                        if (pdfBuffer) {
+                            attachmentUrl = await uploadInvoicePdf(org.org_id, invoiceNumber, pdfBuffer)
+                        }
+                    } catch { /* PDF ej kritisk — fortsätt utan */ }
+
                     await admin.from('claims').insert({
                         org_id: org.org_id,
                         debtor_name: invoice.CustomerName || customer?.Name || 'Okänd',
@@ -100,7 +109,7 @@ export async function POST(req: Request) {
                         status: 'active',
                         current_step: 0,
                         source: 'fortnox',
-                        // Snapshot av agentflödet vid import
+                        attachment_url: attachmentUrl,
                         agent_flow: (org as any).agent_flow ?? null,
                     })
 

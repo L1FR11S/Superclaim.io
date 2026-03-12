@@ -44,7 +44,7 @@ export async function PATCH(request: Request) {
         if (action === 'approve') {
             const { data: draft } = await admin
                 .from('email_drafts')
-                .select('*, claims(debtor_email, org_id, current_step, agentmail_thread_id)')
+                .select('*, claims(debtor_email, org_id, current_step, agentmail_thread_id, attachment_url, invoice_number)')
                 .eq('id', draftId)
                 .single()
 
@@ -58,6 +58,23 @@ export async function PATCH(request: Request) {
 
             let sentResult: { messageId?: string; threadId?: string } = {}
 
+            // Hämta faktura-PDF om tillgänglig
+            let attachments: { filename: string; content: Buffer; contentType: string }[] = []
+            const claim = draft.claims as any
+            if (claim?.attachment_url) {
+                try {
+                    const res = await fetch(claim.attachment_url)
+                    if (res.ok) {
+                        const arrayBuffer = await res.arrayBuffer()
+                        attachments = [{
+                            filename: `Faktura-${claim.invoice_number || 'bilaga'}.pdf`,
+                            content: Buffer.from(arrayBuffer),
+                            contentType: 'application/pdf',
+                        }]
+                    }
+                } catch { /* PDF ej kritisk */ }
+            }
+
             const { sendEmailViaProvider } = await import('@/lib/email/send')
             sentResult = await sendEmailViaProvider({
                 to: draft.to,
@@ -69,6 +86,7 @@ export async function PATCH(request: Request) {
                     email_provider_tokens: settings?.email_provider_tokens,
                     agentmail_inbox_id: settings?.agentmail_inbox_id,
                 },
+                attachments,
             })
 
             // Uppdatera draften till 'sent'

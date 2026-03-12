@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, Download, Plus, RefreshCw, Trash2, MessageSquareReply, Pencil } from 'lucide-react';
+import { Search, Filter, Download, Plus, RefreshCw, Trash2, MessageSquareReply, Pencil, Bell, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { NewClaimModal } from '@/components/claims/NewClaimModal';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -24,6 +24,7 @@ interface Claim {
     has_reply?: boolean;
     has_pending_draft?: boolean;
     days_overdue?: number;
+    stage?: string | null;
 }
 
 function escapeCsvCell(val: string | number): string {
@@ -331,21 +332,106 @@ export default function ClaimsListPage() {
                                 </TableCell>
                                 <TableCell className="py-4 font-medium">{claim.debtor_name}</TableCell>
                                 <TableCell>{claim.amount.toLocaleString('sv-SE')} {claim.currency}</TableCell>
-                                <TableCell className={claim.status === 'paid' ? 'text-muted-foreground' : 'text-destructive font-medium'}>
-                                    {new Date(claim.due_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </TableCell>
-                                <TableCell>{(claim.days_overdue ?? 0) > 0 ? `${claim.days_overdue} dagar` : '-'}</TableCell>
                                 <TableCell>
-                                    {claim.current_step > 0 ? (
-                                        <div className="flex items-center gap-2">
-                                            <span className={`h-2 w-2 rounded-full ${claim.current_step <= 2 ? 'bg-primary animate-pulse' : 'bg-[#f59e0b]'}`} />
-                                            Steg {claim.current_step}
-                                        </div>
-                                    ) : '-'}
+                                    {(() => {
+                                        const dueDate = new Date(claim.due_date);
+                                        const now = new Date();
+                                        const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000);
+                                        const isPreDue = claim.stage === 'pre_due' || (daysUntilDue > 0 && claim.status === 'active' && (claim.days_overdue ?? 0) === 0);
+                                        const isPaid = claim.status === 'paid';
+
+                                        if (isPaid) {
+                                            return (
+                                                <span className="text-muted-foreground">
+                                                    {dueDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </span>
+                                            );
+                                        }
+
+                                        if (isPreDue && daysUntilDue > 0) {
+                                            const color = daysUntilDue > 5 ? 'text-emerald-400' : daysUntilDue > 2 ? 'text-amber-400' : 'text-orange-400';
+                                            return (
+                                                <div className="flex flex-col">
+                                                    <span className={color + ' font-medium'}>
+                                                        {dueDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    </span>
+                                                    <span className={`text-xs ${color} opacity-70`}>{daysUntilDue}d kvar</span>
+                                                </div>
+                                            );
+                                        }
+
+                                        return (
+                                            <span className="text-destructive font-medium">
+                                                {dueDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </span>
+                                        );
+                                    })()}
+                                </TableCell>
+                                <TableCell>
+                                    {(() => {
+                                        const dueDate = new Date(claim.due_date);
+                                        const now = new Date();
+                                        const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000);
+
+                                        if (daysUntilDue > 0 && claim.status !== 'paid') {
+                                            return (
+                                                <span className="inline-flex items-center gap-1.5 text-xs text-primary/80">
+                                                    <Clock className="h-3 w-3" />
+                                                    Förfaller om {daysUntilDue}d
+                                                </span>
+                                            );
+                                        }
+
+                                        return (claim.days_overdue ?? 0) > 0 ? `${claim.days_overdue} dagar` : '\u2013';
+                                    })()}
+                                </TableCell>
+                                <TableCell>
+                                    {(() => {
+                                        const dueDate = new Date(claim.due_date);
+                                        const now = new Date();
+                                        const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000);
+                                        const wasPreDue = claim.stage === 'pre_due' || (claim.current_step === 0 && daysUntilDue > 0 && claim.status === 'active');
+
+                                        // Pre-due: show bell icon + "Förvarning skickad" if stage was cleared (reminder sent)
+                                        if (claim.stage === 'pre_due') {
+                                            return (
+                                                <div className="flex items-center gap-1.5">
+                                                    <Bell className="h-3.5 w-3.5 text-primary animate-pulse" />
+                                                    <span className="text-xs text-primary font-medium">Förvarning väntande</span>
+                                                </div>
+                                            );
+                                        }
+
+                                        if (wasPreDue && claim.current_step === 0) {
+                                            return (
+                                                <div className="flex items-center gap-1.5">
+                                                    <Bell className="h-3.5 w-3.5 text-primary" />
+                                                    <span className="text-xs text-primary/80">Förvarning skickad</span>
+                                                </div>
+                                            );
+                                        }
+
+                                        if (claim.current_step > 0) {
+                                            return (
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`h-2 w-2 rounded-full ${claim.current_step <= 2 ? 'bg-primary animate-pulse' : 'bg-[#f59e0b]'}`} />
+                                                    Steg {claim.current_step}
+                                                </div>
+                                            );
+                                        }
+
+                                        return '\u2013';
+                                    })()}
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-2">
-                                        <StatusBadge status={claim.status} paused={claim.paused} />
+                                        {claim.stage === 'pre_due' ? (
+                                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                                                <Bell className="h-3 w-3" /> Förvarnad
+                                            </span>
+                                        ) : (
+                                            <StatusBadge status={claim.status} paused={claim.paused} />
+                                        )}
                                         {claim.has_reply && claim.paused && claim.status === 'active' && (
                                             <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
                                                 <MessageSquareReply className="h-3 w-3" /> Svar

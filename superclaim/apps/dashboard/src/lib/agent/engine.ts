@@ -555,7 +555,7 @@ async function processPreDueReminder(
                         org_id: claim.org_id,
                         channel: 'email',
                         direction: 'outbound',
-                        content: email.body,
+                        body: email.body,
                         subject: email.subject,
                         step: 0,
                         status: 'sent',
@@ -603,7 +603,7 @@ async function processPreDueReminder(
                     org_id: claim.org_id,
                     channel: 'sms',
                     direction: 'outbound',
-                    content: smsBody,
+                    body: smsBody,
                     step: 0,
                     status: 'sent',
                 })

@@ -22,13 +22,16 @@ export interface GeneratedEmail {
  * Generate a collection email using Claude Haiku 4.5
  */
 export async function generateCollectionEmail(params: {
+    creditorName: string
     debtorName: string
     amount: number
     currency: string
     invoiceNumber: string
     dueDate: string
     step: number
+    daysOverdue: number
     tone: 'professional' | 'friendly' | 'direct'
+    previousStepsSent?: number
 }): Promise<GeneratedEmail> {
     const userPrompt = buildUserPrompt(params)
 
@@ -65,6 +68,7 @@ export async function generateCollectionEmail(params: {
  * Generate a collection SMS using Claude Haiku 4.5
  */
 export async function generateCollectionSms(params: {
+    creditorName: string
     debtorName: string
     amount: number
     currency: string

@@ -216,13 +216,16 @@ async function executeNode(
             // ─────────────────────────────────────────────────────────────
 
             // Generate email via Gemini
+            const daysOverdue = Math.max(0, Math.floor((Date.now() - new Date(claim.due_date).getTime()) / (1000 * 60 * 60 * 24)))
             const email = await generateCollectionEmail({
+                creditorName: orgName,
                 debtorName: claim.debtor_name,
                 amount: claim.amount,
                 currency: claim.currency,
                 invoiceNumber: claim.invoice_number || '',
                 dueDate: new Date(claim.due_date).toLocaleDateString('sv-SE'),
                 step,
+                daysOverdue,
                 tone,
             })
             result.emailsGenerated++
@@ -297,6 +300,7 @@ async function executeNode(
                 try {
                     const smsFrom = orgSettings.sms_sender_name || orgName
                     const smsMessage = await generateCollectionSms({
+                        creditorName: orgName,
                         debtorName: claim.debtor_name,
                         amount: claim.amount,
                         currency: claim.currency,
@@ -452,13 +456,16 @@ async function processClaimLegacy(
     }
 
     // Generate + send email
+    const daysOverdue = Math.max(0, Math.floor((Date.now() - new Date(claim.due_date).getTime()) / (1000 * 60 * 60 * 24)))
     const email = await generateCollectionEmail({
+        creditorName: orgName,
         debtorName: claim.debtor_name,
         amount: claim.amount,
         currency: claim.currency,
         invoiceNumber: claim.invoice_number || '',
         dueDate: new Date(claim.due_date).toLocaleDateString('sv-SE'),
         step: nextStep,
+        daysOverdue,
         tone: 'professional',
     })
     result.emailsGenerated++
@@ -496,6 +503,7 @@ async function processClaimLegacy(
         try {
             const smsFrom = orgSettings.sms_sender_name || orgName
             const smsMessage = await generateCollectionSms({
+                creditorName: orgName,
                 debtorName: claim.debtor_name, amount: claim.amount,
                 currency: claim.currency, invoiceUrl: claim.attachment_url, step: nextStep,
             })

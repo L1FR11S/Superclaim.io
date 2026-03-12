@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { generateCollectionEmail, generateCollectionSms } from './gemini'
+import { generateCollectionEmail, generateCollectionSms, generatePreReminderEmail, generatePreReminderSms } from './gemini'
 import { sendCollectionEmail } from '@/lib/email/agentmail'
 import { sendSms } from '@/lib/sms/elks'
 
@@ -34,6 +34,9 @@ interface OrgSettings {
     agentmail_inbox_id: string | null
     sms_sender_name: string | null
     agent_flow: AgentFlow | null
+    pre_reminder_enabled?: boolean
+    pre_reminder_days?: number
+    pre_reminder_channels?: 'email' | 'sms' | 'both'
 }
 
 interface Claim {
@@ -485,6 +488,144 @@ async function processClaimLegacy(
 
 // ─── Public API ─────────────────────────────────────
 
+// ─── PRE-DUE REMINDER PROCESSING ─────────────────────────
+
+async function processPreDueReminder(
+    claim: Claim,
+    orgSettings: OrgSettings,
+    orgName: string,
+    dueDate: Date,
+    result: AgentRunResult,
+) {
+    const now = new Date()
+    const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    const channels = orgSettings.pre_reminder_channels || 'email'
+
+    console.log(`[Agent] Pre-due reminder for ${claim.debtor_name} — ${daysUntilDue} days until due`)
+
+    // ── Email reminder ──
+    if ((channels === 'email' || channels === 'both') && claim.debtor_email) {
+        try {
+            const email = await generatePreReminderEmail({
+                creditorName: orgName,
+                debtorName: claim.debtor_name,
+                amount: claim.amount,
+                currency: claim.currency,
+                invoiceNumber: claim.invoice_number,
+                dueDate: claim.due_date,
+                daysUntilDue,
+            })
+            result.emailsGenerated++
+
+            if (orgSettings.email_preview) {
+                // Save as draft for approval
+                await supabaseAdmin.from('email_drafts').insert({
+                    org_id: claim.org_id,
+                    claim_id: claim.id,
+                    to_email: claim.debtor_email,
+                    subject: email.subject,
+                    body: email.body,
+                    step: 0,
+                    status: 'pending',
+                })
+
+                await supabaseAdmin.from('notifications').insert({
+                    org_id: claim.org_id,
+                    type: 'draft',
+                    text: `📝 Förvarning till ${claim.debtor_name} väntar på godkännande`,
+                    href: `/dashboard/drafts`,
+                })
+
+                result.actions.push(`🔔 ${claim.debtor_name}: Förvarnings-e-post skapad som utkast (förfaller om ${daysUntilDue}d)`)
+            } else {
+                // Send directly
+                if (orgSettings.agentmail_inbox_id) {
+                    await sendCollectionEmail({
+                        inboxId: orgSettings.agentmail_inbox_id,
+                        to: claim.debtor_email,
+                        subject: email.subject,
+                        body: email.body,
+                    })
+                    result.emailsSent++
+
+                    // Log communication
+                    await supabaseAdmin.from('claim_communications').insert({
+                        claim_id: claim.id,
+                        org_id: claim.org_id,
+                        channel: 'email',
+                        direction: 'outbound',
+                        content: email.body,
+                        subject: email.subject,
+                        step: 0,
+                        status: 'sent',
+                    })
+
+                    result.actions.push(`📧 ${claim.debtor_name}: Förvarnings-e-post skickad (förfaller om ${daysUntilDue}d)`)
+                }
+            }
+        } catch (err: any) {
+            result.errors.push(`Pre-reminder email ${claim.id}: ${err.message}`)
+        }
+    }
+
+    // ── SMS reminder ──
+    if ((channels === 'sms' || channels === 'both') && claim.debtor_phone && orgSettings.sms_enabled) {
+        try {
+            const smsBody = await generatePreReminderSms({
+                debtorName: claim.debtor_name,
+                amount: claim.amount,
+                currency: claim.currency,
+                dueDate: claim.due_date,
+                daysUntilDue,
+            })
+
+            if (orgSettings.sms_preview) {
+                await supabaseAdmin.from('sms_drafts').insert({
+                    org_id: claim.org_id,
+                    claim_id: claim.id,
+                    to_phone: claim.debtor_phone,
+                    body: smsBody,
+                    step: 0,
+                    status: 'pending',
+                })
+                result.actions.push(`💬 ${claim.debtor_name}: Förvarnings-SMS skapad som utkast`)
+            } else {
+                await sendSms({
+                    from: orgSettings.sms_sender_name || 'Superclaim',
+                    to: claim.debtor_phone,
+                    message: smsBody,
+                })
+                result.smsSent++
+
+                await supabaseAdmin.from('claim_communications').insert({
+                    claim_id: claim.id,
+                    org_id: claim.org_id,
+                    channel: 'sms',
+                    direction: 'outbound',
+                    content: smsBody,
+                    step: 0,
+                    status: 'sent',
+                })
+
+                result.actions.push(`💬 ${claim.debtor_name}: Förvarnings-SMS skickat`)
+            }
+        } catch (err: any) {
+            result.errors.push(`Pre-reminder SMS ${claim.id}: ${err.message}`)
+        }
+    }
+
+    // Set next_action_at to due_date + 1 day for normal collection to start if unpaid
+    const nextCollection = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000)
+    await supabaseAdmin.from('claims').update({
+        stage: null,
+        current_step: 0,
+        next_action_at: nextCollection.toISOString(),
+        updated_at: now.toISOString(),
+    }).eq('id', claim.id)
+
+    result.claimsProcessed++
+}
+
 export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
     const result: AgentRunResult = {
         orgId, claimsProcessed: 0, emailsGenerated: 0,
@@ -543,6 +684,28 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
 
         for (const claim of claims as Claim[]) {
             try {
+                // ─── PRE-DUE REMINDER INTERCEPTION ──────────────────
+                // If claim is pre_due and due date hasn't passed, send friendly reminder
+                const claimStage = (claim as any).stage
+                const dueDate = claim.due_date ? new Date(claim.due_date) : null
+                const nowDate = new Date()
+
+                if (claimStage === 'pre_due' && dueDate && dueDate > nowDate) {
+                    await processPreDueReminder(claim, orgSettings, orgName, dueDate, result)
+                    continue // Skip normal collection flow
+                }
+
+                // If claim was pre_due but due date has passed, transition to collection
+                if (claimStage === 'pre_due' && dueDate && dueDate <= nowDate) {
+                    await supabaseAdmin.from('claims').update({
+                        stage: null,
+                        current_step: 0,
+                        next_action_at: nowDate.toISOString(),
+                    }).eq('id', claim.id)
+                    result.actions.push(`⏰ ${claim.debtor_name}: Förfallodatum passerat — övergår till normal kravprocess`)
+                    // Continue to normal flow below
+                }
+
                 // Prioritera ärendets egna snapshot-flow (om det finns),
                 // annars fall tillbaka till org:ens globala flow.
                 const claimFlow = (claim as any).agent_flow ?? orgSettings.agent_flow

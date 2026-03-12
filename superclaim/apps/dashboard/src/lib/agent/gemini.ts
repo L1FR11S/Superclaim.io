@@ -1,5 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { SYSTEM_PROMPT, SMS_SYSTEM_PROMPT, buildUserPrompt, buildSmsUserPrompt } from './prompt'
+import {
+    SYSTEM_PROMPT, SMS_SYSTEM_PROMPT, buildUserPrompt, buildSmsUserPrompt,
+    PRE_REMINDER_EMAIL_PROMPT, PRE_REMINDER_SMS_PROMPT,
+    buildPreReminderEmailPrompt, buildPreReminderSmsPrompt,
+} from './prompt'
 
 let _client: Anthropic | null = null
 function getClient() {
@@ -88,5 +92,83 @@ export async function generateCollectionSms(params: {
     } catch {
         console.error('[Claude] Failed to parse SMS JSON response:', text)
         return text || `Påminnelse: Du har en obetald faktura på ${params.amount.toLocaleString('sv-SE')} ${params.currency}. Vänligen betala snarast.`
+    }
+}
+
+// ─── PRE-REMINDER GENERATORS ──────────────────────────────
+
+/**
+ * Generate a pre-due reminder email (friendly, service-oriented)
+ */
+export async function generatePreReminderEmail(params: {
+    creditorName: string
+    debtorName: string
+    amount: number
+    currency: string
+    invoiceNumber: string
+    dueDate: string
+    daysUntilDue: number
+}): Promise<GeneratedEmail> {
+    const userPrompt = buildPreReminderEmailPrompt(params)
+
+    const response = await getClient().messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: PRE_REMINDER_EMAIL_PROMPT,
+        messages: [
+            { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3,
+    })
+
+    const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
+
+    try {
+        const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return {
+            subject: parsed.subject || `Påminnelse: Faktura ${params.invoiceNumber} förfaller snart`,
+            body: parsed.body || '',
+        }
+    } catch {
+        console.error('[Claude] Failed to parse pre-reminder email:', text)
+        return {
+            subject: `Påminnelse: Faktura ${params.invoiceNumber} förfaller om ${params.daysUntilDue} dagar`,
+            body: text,
+        }
+    }
+}
+
+/**
+ * Generate a pre-due reminder SMS (short, friendly)
+ */
+export async function generatePreReminderSms(params: {
+    debtorName: string
+    amount: number
+    currency: string
+    dueDate: string
+    daysUntilDue: number
+}): Promise<string> {
+    const userPrompt = buildPreReminderSmsPrompt(params)
+
+    const response = await getClient().messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system: PRE_REMINDER_SMS_PROMPT,
+        messages: [
+            { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3,
+    })
+
+    const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
+
+    try {
+        const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return parsed.body || `Hej! Faktura på ${params.amount.toLocaleString('sv-SE')} ${params.currency} förfaller ${params.dueDate}. Betala gärna i tid!`
+    } catch {
+        console.error('[Claude] Failed to parse pre-reminder SMS:', text)
+        return text || `Hej! Faktura på ${params.amount.toLocaleString('sv-SE')} ${params.currency} förfaller ${params.dueDate}. Betala gärna i tid!`
     }
 }

@@ -67,7 +67,11 @@ export async function PUT(request: Request) {
         if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
 
         const body = await request.json()
-        const { tone, step_delays, sms_enabled, email_preview, agent_flow, sms_preview, fortnox_auto_import, sms_sender_name } = body
+        const {
+            tone, step_delays, sms_enabled, email_preview, agent_flow,
+            sms_preview, fortnox_auto_import, sms_sender_name,
+            pre_reminder_enabled, pre_reminder_days, pre_reminder_channels,
+        } = body
 
         const { data, error } = await admin
             .from('org_settings')
@@ -81,6 +85,9 @@ export async function PUT(request: Request) {
                 ...(sms_preview !== undefined && { sms_preview }),
                 ...(fortnox_auto_import !== undefined && { fortnox_auto_import }),
                 ...(sms_sender_name !== undefined && { sms_sender_name }),
+                ...(pre_reminder_enabled !== undefined && { pre_reminder_enabled }),
+                ...(pre_reminder_days !== undefined && { pre_reminder_days }),
+                ...(pre_reminder_channels !== undefined && { pre_reminder_channels }),
                 updated_at: new Date().toISOString(),
             }, { onConflict: 'org_id' })
             .select()

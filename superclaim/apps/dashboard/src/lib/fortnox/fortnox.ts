@@ -166,6 +166,27 @@ export async function fetchOverdueInvoices(orgId: string) {
 }
 
 /**
+ * Fetch upcoming invoices — unpaid invoices due within `daysAhead` days.
+ * Fortnox doesn't have a duedate filter, so we fetch all unpaid and filter server-side.
+ */
+export async function fetchUpcomingInvoices(orgId: string, daysAhead: number) {
+    const token = await getAccessToken(orgId)
+    const data = await fortnoxGet(token, '/invoices?filter=unpaid')
+    const invoices = data.Invoices || []
+
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const cutoff = new Date(today.getTime() + daysAhead * 24 * 60 * 60 * 1000)
+
+    return invoices.filter((inv: any) => {
+        if (!inv.DueDate) return false
+        const due = new Date(inv.DueDate)
+        // Only include invoices that are NOT yet overdue and due within daysAhead
+        return due >= today && due <= cutoff
+    })
+}
+
+/**
  * Fetch a single invoice with full details
  */
 export async function fetchInvoice(orgId: string, documentNumber: string) {

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Save, Copy, Check, Globe, Loader2, Mail, Link2, Unlink, Download,
-    Settings, Plug, User, CreditCard, MessageSquare, Building, UserPlus, Trash2, Shield, Eye, EyeOff, Lock
+    Settings, Plug, User, CreditCard, MessageSquare, Building, UserPlus, Trash2, Shield, Eye, EyeOff, Lock, Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -66,6 +66,11 @@ function SettingsContent() {
     const [loading, setLoading] = useState(true);
     const [inboxId, setInboxId] = useState<string | null>(null);
 
+    // Pre-reminder state
+    const [preReminderEnabled, setPreReminderEnabled] = useState(false);
+    const [preReminderDays, setPreReminderDays] = useState(5);
+    const [preReminderChannels, setPreReminderChannels] = useState<'email' | 'sms' | 'both'>('email');
+
     // Confirm dialog state
     const [removeMember, setRemoveMember] = useState<{ id: string; email: string } | null>(null);
     const [showFortnoxDisconnect, setShowFortnoxDisconnect] = useState(false);
@@ -113,6 +118,9 @@ function SettingsContent() {
                 if (data.sms_preview !== undefined) setSmsPreview(data.sms_preview);
                 if (data.sms_sender_name) setSmsSenderName(data.sms_sender_name);
                 if (data.agentmail_inbox_id) setInboxId(data.agentmail_inbox_id);
+                if (data.pre_reminder_enabled !== undefined) setPreReminderEnabled(data.pre_reminder_enabled);
+                if (data.pre_reminder_days !== undefined) setPreReminderDays(data.pre_reminder_days);
+                if (data.pre_reminder_channels) setPreReminderChannels(data.pre_reminder_channels);
             })
             .catch(() => { })
             .finally(() => setLoading(false));
@@ -197,6 +205,9 @@ function SettingsContent() {
                     sms_preview: smsPreview,
                     sms_sender_name: smsSenderName || undefined,
                     fortnox_auto_import: fortnoxAutoImport,
+                    pre_reminder_enabled: preReminderEnabled,
+                    pre_reminder_days: preReminderDays,
+                    pre_reminder_channels: preReminderChannels,
                 }),
             });
             if (res.ok) toast.success('Inställningar sparade ✨');
@@ -564,6 +575,87 @@ function SettingsContent() {
                             <h2 className="text-lg font-medium">Allmänt</h2>
                             <p className="text-sm text-muted-foreground mt-0.5">Konfigurera agentens grundinställningar</p>
                         </div>
+
+                        {/* ─── Förvarning ─── */}
+                        <GlassCard className="p-6">
+                            <div className="space-y-5">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                            <Bell className="h-4 w-4" /> Förvarningspåminnelse
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Skicka en vänlig påminnelse innan fakturan förfaller — kassaflödesoptimering istället för krav.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setPreReminderEnabled(!preReminderEnabled)}
+                                        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                                            preReminderEnabled ? 'bg-primary shadow-[0_0_12px_rgba(0,229,204,0.3)]' : 'bg-[#ffffff15]'
+                                        }`}
+                                    >
+                                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                                            preReminderEnabled ? 'translate-x-6' : 'translate-x-1'
+                                        }`} />
+                                    </button>
+                                </div>
+
+                                {preReminderEnabled && (
+                                    <div className="space-y-4 pt-2 border-t border-[#ffffff08] animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm text-muted-foreground">Dagar före förfall</Label>
+                                            <div className="flex gap-2">
+                                                {[3, 5, 7, 10, 14].map((d) => (
+                                                    <button
+                                                        key={d}
+                                                        onClick={() => setPreReminderDays(d)}
+                                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            preReminderDays === d
+                                                                ? 'bg-primary/20 text-primary border border-primary/30 shadow-[0_0_8px_rgba(0,229,204,0.15)]'
+                                                                : 'bg-[#ffffff06] text-muted-foreground border border-[#ffffff08] hover:border-[#ffffff15]'
+                                                        }`}
+                                                    >
+                                                        {d} dagar
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground/60">
+                                                Påminnelsen skickas {preReminderDays} dagar innan förfallodatumet.
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-sm text-muted-foreground">Kanal</Label>
+                                            <div className="flex gap-2">
+                                                {[
+                                                    { value: 'email' as const, label: '📧 E-post' },
+                                                    { value: 'sms' as const, label: '💬 SMS' },
+                                                    { value: 'both' as const, label: '📧 + 💬 Båda' },
+                                                ].map((ch) => (
+                                                    <button
+                                                        key={ch.value}
+                                                        onClick={() => setPreReminderChannels(ch.value)}
+                                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            preReminderChannels === ch.value
+                                                                ? 'bg-primary/20 text-primary border border-primary/30 shadow-[0_0_8px_rgba(0,229,204,0.15)]'
+                                                                : 'bg-[#ffffff06] text-muted-foreground border border-[#ffffff08] hover:border-[#ffffff15]'
+                                                        }`}
+                                                    >
+                                                        {ch.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-primary/5 border border-primary/10 rounded-xl p-3">
+                                            <p className="text-xs text-primary/80">
+                                                💡 Exempel: &quot;Hej! Vi vill påminna om att faktura #1234 på 45 000 kr förfaller om {preReminderDays} dagar. Betala gärna i tid så slipper ni extra avgifter.&quot;
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </GlassCard>
 
                         {/* SMS Sender Name */}
                         <GlassCard className="p-6">

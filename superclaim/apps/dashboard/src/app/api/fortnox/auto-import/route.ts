@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
-import { fetchOverdueInvoices, fetchCustomer } from '@/lib/fortnox/fortnox'
+import { fetchOverdueInvoices, fetchUpcomingInvoices, fetchCustomer } from '@/lib/fortnox/fortnox'
 import { verifyQStashRequest } from '@/lib/qstash'
 
 /**
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     // Hämta alla org med Fortnox kopplat + auto-import aktiverat
     const { data: orgs, error } = await admin
         .from('org_settings')
-        .select('org_id, fortnox_connected, fortnox_auto_import, agent_flow')
+        .select('org_id, fortnox_connected, fortnox_auto_import, agent_flow, pre_reminder_enabled, pre_reminder_days, pre_reminder_channels')
         .eq('fortnox_connected', true)
         .eq('fortnox_auto_import', true)
 
@@ -120,6 +120,65 @@ export async function POST(req: Request) {
                 .eq('org_id', org.org_id)
 
             console.log(`[fortnox/auto-import] Org ${org.org_id}: ${orgResult.imported} importerade, ${orgResult.skipped} hoppades över`)
+
+            // ─── Pre-due reminder import ────────────────────────────
+            if ((org as any).pre_reminder_enabled && (org as any).pre_reminder_days) {
+                const preReminderDays = (org as any).pre_reminder_days as number
+                try {
+                    const upcomingInvoices = await fetchUpcomingInvoices(org.org_id, preReminderDays)
+
+                    for (const invoice of upcomingInvoices) {
+                        const invoiceNumber = String(invoice.DocumentNumber)
+
+                        if (existingInvoiceNumbers.has(invoiceNumber)) {
+                            continue // Already imported (overdue or pre-due)
+                        }
+
+                        try {
+                            const customerNumber = String(invoice.CustomerNumber)
+                            if (!customerCache[customerNumber]) {
+                                try {
+                                    customerCache[customerNumber] = await fetchCustomer(org.org_id, customerNumber)
+                                } catch {
+                                    customerCache[customerNumber] = null
+                                }
+                            }
+                            const customer = customerCache[customerNumber]
+
+                            // Calculate next_action_at: due_date - pre_reminder_days, or now if already within window
+                            const dueDate = new Date(invoice.DueDate)
+                            const reminderDate = new Date(dueDate.getTime() - preReminderDays * 24 * 60 * 60 * 1000)
+                            const now = new Date()
+                            const nextAction = reminderDate <= now ? now : reminderDate
+
+                            await admin.from('claims').insert({
+                                org_id: org.org_id,
+                                debtor_name: invoice.CustomerName || customer?.Name || 'Okänd',
+                                debtor_email: customer?.Email || null,
+                                debtor_phone: customer?.Phone1 || customer?.Phone2 || null,
+                                amount: invoice.Balance ?? invoice.Total,
+                                currency: invoice.Currency || 'SEK',
+                                invoice_number: invoiceNumber,
+                                due_date: invoice.DueDate || null,
+                                status: 'active',
+                                current_step: 0,
+                                source: 'fortnox',
+                                stage: 'pre_due',
+                                next_action_at: nextAction.toISOString(),
+                                agent_flow: (org as any).agent_flow ?? null,
+                            })
+
+                            orgResult.imported++
+                            console.log(`[fortnox/auto-import] Pre-due: ${invoice.CustomerName} (faktura ${invoiceNumber}, förfaller ${invoice.DueDate})`)
+                        } catch (err: any) {
+                            orgResult.errors.push(`Pre-due faktura ${invoiceNumber}: ${err.message}`)
+                        }
+                    }
+                } catch (err: any) {
+                    orgResult.errors.push(`Pre-due fetch: ${err.message}`)
+                    console.error(`[fortnox/auto-import] Pre-due fel för org ${org.org_id}:`, err.message)
+                }
+            }
         } catch (err: any) {
             orgResult.errors.push(err.message)
             console.error(`[fortnox/auto-import] Fel för org ${org.org_id}:`, err.message)

@@ -183,7 +183,7 @@ export async function POST(request: Request) {
         // Hämta org-settings för att snapshottera agent_flow
         const { data: orgSettings } = await admin
             .from('org_settings')
-            .select('agent_flow')
+            .select('agent_flow, pre_reminder_enabled, pre_reminder_days')
             .eq('org_id', org.id)
             .single()
 
@@ -227,12 +227,33 @@ export async function POST(request: Request) {
             }
         }
 
-        // If already overdue → act immediately, otherwise wait until due_date + 1 day
+        // Determine next_action_at based on pre-reminder settings
         const dueDate = new Date(due_date)
         const now = new Date()
-        const nextAction = dueDate < now
-            ? now  // already overdue — trigger agent on next run
-            : new Date(dueDate.getTime() + 24 * 60 * 60 * 1000) // due_date + 1 day
+        const preReminderEnabled = orgSettings?.pre_reminder_enabled
+        const preReminderDays = orgSettings?.pre_reminder_days || 5
+
+        let nextAction: Date
+        let stage: string | null = null
+
+        if (dueDate < now) {
+            // Already overdue — trigger agent on next run
+            nextAction = now
+        } else if (preReminderEnabled) {
+            // Pre-reminder: trigger X days before due date
+            const reminderDate = new Date(dueDate.getTime() - preReminderDays * 24 * 60 * 60 * 1000)
+            if (reminderDate > now) {
+                nextAction = reminderDate
+                stage = 'pre_due'
+            } else {
+                // Within the pre-reminder window already — trigger now as pre_due
+                nextAction = now
+                stage = 'pre_due'
+            }
+        } else {
+            // No pre-reminder — wait until due_date + 1 day
+            nextAction = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000)
+        }
 
         const { data: claim, error } = await admin
             .from('claims')
@@ -248,6 +269,7 @@ export async function POST(request: Request) {
                 status: 'active',
                 current_step: 0,
                 next_action_at: nextAction.toISOString(),
+                ...(stage && { stage }),
                 attachment_url,
                 // Snapshot av nuvarande agentflöde — ändringar i flödet påverkar ej detta ärende
                 agent_flow: orgSettings?.agent_flow ?? null,

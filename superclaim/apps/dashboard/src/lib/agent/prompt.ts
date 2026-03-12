@@ -154,3 +154,90 @@ ${getSmsStepInstructions(params.step)}
 
 Generera ett koncist SMS i JSON-format.`
 }
+
+// ─── PRE-REMINDER PROMPTS ─────────────────────────────────
+
+/**
+ * System prompt for pre-due reminder emails.
+ * Tone: SERVICE, not collection. This is a friendly heads-up, not a demand.
+ */
+export const PRE_REMINDER_EMAIL_PROMPT = `Du är en hjälpsam betalningspåminnelsetjänst som arbetar för ett svenskt företag.
+
+Ditt uppdrag är att skriva VÄNLIGA betalningspåminnelser på svenska INNAN fakturan har förfallit.
+
+VIKTIGT — DETTA ÄR INTE ETT KRAV:
+- Fakturan har INTE förfallit ännu — det här är en serviceåtgärd
+- Tonen ska vara extremt vänlig, hjälpsam och icke-konfronterande
+- Syftet är att HJÄLPA mottagaren betala i tid, inte att hota
+- Inga juridiska formuleringar, inga konsekvenser, inga hot
+- Inget snack om dröjsmålsränta eller inkasso
+- Formulera det som en "vänlig påminnelse" eller "servicemeddelande"
+- Inkludera alltid fakturanummer, belopp och förfallodatum
+- Avsluta positivt, t.ex. "Tack för att ni tar er tid!"
+- Använd INTE markdown-formatering i brödtexten
+
+SVARA ALLTID I FÖLJANDE JSON-FORMAT:
+{
+  "subject": "Ämnesrad här",
+  "body": "Meddelandetext här"
+}`
+
+/**
+ * System prompt for pre-due reminder SMS.
+ */
+export const PRE_REMINDER_SMS_PROMPT = `Du är en hjälpsam betalningspåminnelsetjänst.
+
+Skriv ett KORT och VÄNLIGT SMS på svenska som påminner om en kommande faktura.
+
+VIKTIGT:
+- Fakturan har INTE förfallit ännu
+- Max 160 tecken om möjligt
+- Vänlig ton — detta är en service, inte ett krav
+- Inkludera belopp och förfallodatum
+- Inga hot eller juridik
+
+SVARA I JSON-FORMAT:
+{
+  "body": "SMS-text här"
+}`
+
+/**
+ * Build user prompt for pre-due reminder email
+ */
+export function buildPreReminderEmailPrompt(params: {
+    creditorName: string
+    debtorName: string
+    amount: number
+    currency: string
+    invoiceNumber: string
+    dueDate: string
+    daysUntilDue: number
+}): string {
+    return `Skriv en vänlig betalningspåminnelse för:
+
+AVSÄNDARE (fordringsägare): ${params.creditorName}
+MOTTAGARE: ${params.debtorName}
+FAKTURANUMMER: ${params.invoiceNumber}
+BELOPP: ${params.amount.toLocaleString('sv-SE')} ${params.currency}
+FÖRFALLODATUM: ${params.dueDate}
+DAGAR KVAR: ${params.daysUntilDue} dagar
+
+Påminn vänligt om att fakturan förfaller snart och att betalning i tid uppskattas.`
+}
+
+/**
+ * Build user prompt for pre-due reminder SMS
+ */
+export function buildPreReminderSmsPrompt(params: {
+    debtorName: string
+    amount: number
+    currency: string
+    dueDate: string
+    daysUntilDue: number
+}): string {
+    return `Påminnelse-SMS:
+MOTTAGARE: ${params.debtorName}
+BELOPP: ${params.amount.toLocaleString('sv-SE')} ${params.currency}
+FÖRFALLODATUM: ${params.dueDate}
+DAGAR KVAR: ${params.daysUntilDue} dagar`
+}

@@ -6,6 +6,6 @@
  */
 export function getInvoiceUrl(claimId: string): string {
     const shortId = claimId.replace(/-/g, '').slice(0, 8)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://superclaim.io'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.superclaim.io'
     return `${baseUrl}/f/${shortId}`
 }

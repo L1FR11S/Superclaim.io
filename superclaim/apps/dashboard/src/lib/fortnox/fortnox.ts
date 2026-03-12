@@ -251,7 +251,7 @@ export async function uploadInvoicePdf(
         const admin = createAdminClient()
         
         const { error } = await admin.storage
-            .from('invoices')
+            .from('claim-attachments')
             .upload(filePath, pdfBuffer, {
                 contentType: 'application/pdf',
                 upsert: true,
@@ -263,7 +263,7 @@ export async function uploadInvoicePdf(
         }
 
         const { data } = admin.storage
-            .from('invoices')
+            .from('claim-attachments')
             .getPublicUrl(filePath)
 
         return data.publicUrl

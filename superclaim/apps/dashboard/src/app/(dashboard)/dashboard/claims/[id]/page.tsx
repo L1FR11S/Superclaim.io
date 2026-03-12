@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Pause, XCircle, AlertTriangle, ExternalLink, Trash2, Play } from 'lucide-react';
+import { ArrowLeft, Pause, XCircle, AlertTriangle, ExternalLink, Trash2, Play, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/shared/GlassCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -27,6 +27,7 @@ interface Claim {
     paused?: boolean;
     current_step: number;
     payment_link?: string;
+    attachment_url?: string | null;
 }
 
 interface TimelineEvent {
@@ -234,6 +235,17 @@ export default function ClaimDetailPage() {
                                 <dd>
                                     <a href={claim.payment_link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
                                         Öppna <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                </dd>
+                            </div>
+                        )}
+                        {claim.attachment_url && (
+                            <div className="flex justify-between items-center">
+                                <dt className="text-sm text-muted-foreground">Faktura PDF</dt>
+                                <dd>
+                                    <a href={claim.attachment_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                                        <FileText className="h-3.5 w-3.5" />
+                                        Visa PDF
                                     </a>
                                 </dd>
                             </div>

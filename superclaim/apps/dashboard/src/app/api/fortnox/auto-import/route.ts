@@ -184,6 +184,17 @@ export async function POST(req: Request) {
                             const now = new Date()
                             const nextAction = reminderDate <= now ? now : reminderDate
 
+                            // Hämta och spara faktura-PDF
+                            let attachmentUrl: string | null = null
+                            try {
+                                const pdfBuffer = await fetchInvoicePdf(org.org_id, invoiceNumber)
+                                if (pdfBuffer) {
+                                    attachmentUrl = await uploadInvoicePdf(org.org_id, invoiceNumber, pdfBuffer)
+                                }
+                            } catch (pdfErr: any) {
+                                console.error(`[Auto-import] Pre-due PDF error for ${invoiceNumber}:`, pdfErr.message)
+                            }
+
                             await admin.from('claims').insert({
                                 org_id: org.org_id,
                                 debtor_name: invoice.CustomerName || customer?.Name || 'Okänd',
@@ -198,6 +209,7 @@ export async function POST(req: Request) {
                                 source: 'fortnox',
                                 stage: 'pre_due',
                                 next_action_at: nextAction.toISOString(),
+                                attachment_url: attachmentUrl,
                                 agent_flow: (org as any).agent_flow ?? null,
                             })
 

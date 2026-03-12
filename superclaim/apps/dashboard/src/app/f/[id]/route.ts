@@ -37,14 +37,17 @@ export async function GET(
             .maybeSingle()
         claim = data
     } else {
-        // Short ID — first 8 hex chars = first segment before the dash
-        // Search claims where id starts with this prefix
+        // Short ID = first 8 hex chars = first segment of UUID (before first dash)
+        // Reconstruct UUID range for prefix search
         const prefix = id.toLowerCase()
+        const gteId = `${prefix}-0000-0000-0000-000000000000`
+        const lteId = `${prefix}-ffff-ffff-ffff-ffffffffffff`
+
         const { data: claims } = await admin
             .from('claims')
             .select('id, attachment_url')
-            .gte('id', `${prefix}${'0'.repeat(36 - prefix.length - 4)}`)
-            .lte('id', `${prefix}${'f'.repeat(36 - prefix.length - 4)}`)
+            .gte('id', gteId)
+            .lte('id', lteId)
             .not('attachment_url', 'is', null)
             .limit(1)
         

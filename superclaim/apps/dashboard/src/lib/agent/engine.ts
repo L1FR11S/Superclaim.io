@@ -554,8 +554,51 @@ async function processPreDueReminder(
 
     let reminderSent = false
 
+    // ── Deduplication guard ──────────────────────────────────
+    // Förhindrar dubbelutskick om agenten körs flera gånger
+    const { count: existingEmailComm } = await supabaseAdmin
+        .from('claim_communications')
+        .select('id', { count: 'exact', head: true })
+        .eq('claim_id', claim.id)
+        .eq('step', 0)
+        .eq('channel', 'email')
+
+    const { count: existingSmsComm } = await supabaseAdmin
+        .from('claim_communications')
+        .select('id', { count: 'exact', head: true })
+        .eq('claim_id', claim.id)
+        .eq('step', 0)
+        .eq('channel', 'sms')
+
+    const { count: existingEmailDraft } = await supabaseAdmin
+        .from('email_drafts')
+        .select('id', { count: 'exact', head: true })
+        .eq('claim_id', claim.id)
+        .eq('step', 0)
+
+    const { count: existingSmsDraft } = await supabaseAdmin
+        .from('sms_drafts')
+        .select('id', { count: 'exact', head: true })
+        .eq('claim_id', claim.id)
+        .eq('step', 0)
+
+    const emailAlreadySent = (existingEmailComm || 0) > 0 || (existingEmailDraft || 0) > 0
+    const smsAlreadySent = (existingSmsComm || 0) > 0 || (existingSmsDraft || 0) > 0
+
+    if (emailAlreadySent && smsAlreadySent) {
+        console.log(`[Agent] Pre-due: All reminders already sent for ${claim.debtor_name} — skipping`)
+        // Säkerställ att stage uppdateras
+        await supabaseAdmin.from('claims').update({
+            stage: 'pre_due_sent',
+            next_action_at: new Date(dueDate.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+        }).eq('id', claim.id)
+        result.claimsProcessed++
+        return
+    }
+
     // ── Email reminder ──
-    if ((channels === 'email' || channels === 'both') && claim.debtor_email) {
+    if ((channels === 'email' || channels === 'both') && claim.debtor_email && !emailAlreadySent) {
         try {
             const email = await generatePreReminderEmail({
                 creditorName: orgName,
@@ -620,7 +663,7 @@ async function processPreDueReminder(
     }
 
     // ── SMS reminder ──
-    if ((channels === 'sms' || channels === 'both') && claim.debtor_phone) {
+    if ((channels === 'sms' || channels === 'both') && claim.debtor_phone && !smsAlreadySent) {
         try {
             const smsBody = await generatePreReminderSms({
                 debtorName: claim.debtor_name,

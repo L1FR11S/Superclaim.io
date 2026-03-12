@@ -387,12 +387,7 @@ export default function ClaimsListPage() {
                                 </TableCell>
                                 <TableCell>
                                     {(() => {
-                                        const dueDate = new Date(claim.due_date);
-                                        const now = new Date();
-                                        const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000);
-                                        const wasPreDue = claim.stage === 'pre_due' || (claim.current_step === 0 && daysUntilDue > 0 && claim.status === 'active');
-
-                                        // Pre-due: show bell icon + "Förvarning skickad" if stage was cleared (reminder sent)
+                                        // Step indicator based on actual stage data
                                         if (claim.stage === 'pre_due') {
                                             return (
                                                 <div className="flex items-center gap-1.5">
@@ -402,7 +397,7 @@ export default function ClaimsListPage() {
                                             );
                                         }
 
-                                        if (wasPreDue && claim.current_step === 0) {
+                                        if (claim.stage === 'pre_due_sent') {
                                             return (
                                                 <div className="flex items-center gap-1.5">
                                                     <Bell className="h-3.5 w-3.5 text-primary" />
@@ -425,7 +420,7 @@ export default function ClaimsListPage() {
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-2">
-                                        {claim.stage === 'pre_due' ? (
+                                        {(claim.stage === 'pre_due' || claim.stage === 'pre_due_sent') ? (
                                             <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
                                                 <Bell className="h-3 w-3" /> Förvarnad
                                             </span>

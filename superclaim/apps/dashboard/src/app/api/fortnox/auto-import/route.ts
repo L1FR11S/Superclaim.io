@@ -91,11 +91,18 @@ export async function POST(req: Request) {
                     // Hämta och spara faktura-PDF
                     let attachmentUrl: string | null = null
                     try {
+                        console.log(`[Auto-import] Fetching PDF for invoice ${invoiceNumber}...`)
                         const pdfBuffer = await fetchInvoicePdf(org.org_id, invoiceNumber)
                         if (pdfBuffer) {
+                            console.log(`[Auto-import] PDF fetched (${pdfBuffer.length} bytes), uploading...`)
                             attachmentUrl = await uploadInvoicePdf(org.org_id, invoiceNumber, pdfBuffer)
+                            console.log(`[Auto-import] PDF upload result: ${attachmentUrl ? 'OK' : 'FAILED'}`)
+                        } else {
+                            console.log(`[Auto-import] No PDF returned for invoice ${invoiceNumber}`)
                         }
-                    } catch { /* PDF ej kritisk — fortsätt utan */ }
+                    } catch (pdfErr: any) {
+                        console.error(`[Auto-import] PDF error for ${invoiceNumber}:`, pdfErr.message)
+                    }
 
                     await admin.from('claims').insert({
                         org_id: org.org_id,

@@ -220,18 +220,35 @@ export async function fetchCompanyInfo(orgId: string) {
 export async function fetchInvoicePdf(orgId: string, invoiceNumber: string): Promise<Buffer | null> {
     try {
         const token = await getAccessToken(orgId)
-        const res = await fetch(`${FORTNOX_API_BASE}/invoices/${invoiceNumber}/print`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/pdf',
-            },
-        })
-        if (!res.ok) {
-            console.error(`[Fortnox PDF] Failed to fetch PDF for invoice ${invoiceNumber}: ${res.status}`)
-            return null
+        
+        // Try preview endpoint first (doesn't mark invoice as 'Sent')
+        // Falls back to print endpoint if preview fails
+        const endpoints = [
+            `/invoices/${invoiceNumber}/preview`,
+            `/invoices/${invoiceNumber}/print`,
+        ]
+        
+        for (const endpoint of endpoints) {
+            const res = await fetch(`${FORTNOX_API_BASE}${endpoint}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/pdf',
+                },
+            })
+            
+            console.log(`[Fortnox PDF] ${endpoint} → status=${res.status}, content-type=${res.headers.get('content-type')}`)
+            
+            if (res.ok) {
+                const arrayBuffer = await res.arrayBuffer()
+                console.log(`[Fortnox PDF] Downloaded ${arrayBuffer.byteLength} bytes for invoice ${invoiceNumber}`)
+                if (arrayBuffer.byteLength > 0) {
+                    return Buffer.from(arrayBuffer)
+                }
+            }
         }
-        const arrayBuffer = await res.arrayBuffer()
-        return Buffer.from(arrayBuffer)
+        
+        console.error(`[Fortnox PDF] All endpoints failed for invoice ${invoiceNumber}`)
+        return null
     } catch (err: any) {
         console.error(`[Fortnox PDF] Error fetching PDF for invoice ${invoiceNumber}:`, err.message)
         return null

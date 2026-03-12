@@ -1,6 +1,9 @@
 /**
  * Universal email sender — routes through the correct provider
  * based on org_settings.email_provider
+ *
+ * Tokens are stored per-provider in nested JSONB:
+ * { google: { access_token, refresh_token, ... }, microsoft: { access_token, ... } }
  */
 
 import { sendCollectionEmail } from './agentmail'
@@ -11,11 +14,18 @@ interface OrgEmailSettings {
     email_provider?: 'agentmail' | 'google' | 'microsoft' | 'custom_domain'
     email_provider_address?: string | null
     email_provider_tokens?: {
-        access_token?: string
-        refresh_token?: string
-        expiry_date?: number
-        expires_on?: string
-        account?: any
+        google?: {
+            access_token?: string
+            refresh_token?: string
+            expiry_date?: number
+            email?: string
+        }
+        microsoft?: {
+            access_token?: string
+            expires_on?: string
+            account?: any
+            email?: string
+        }
     } | null
     agentmail_inbox_id?: string | null
 }
@@ -37,7 +47,7 @@ export async function sendEmailViaProvider({
 
     switch (provider) {
         case 'google': {
-            const tokens = orgSettings.email_provider_tokens
+            const tokens = orgSettings.email_provider_tokens?.google
             if (!tokens?.access_token || !tokens?.refresh_token) {
                 throw new Error('Google-tokens saknas. Koppla om Gmail under E-post & SMS.')
             }
@@ -47,7 +57,6 @@ export async function sendEmailViaProvider({
             if (tokens.expiry_date && Date.now() >= tokens.expiry_date) {
                 const refreshed = await refreshGoogleToken(tokens.refresh_token)
                 accessToken = refreshed.access_token || accessToken
-                // Note: caller should persist the new tokens
             }
 
             return sendGmailEmail({
@@ -56,12 +65,12 @@ export async function sendEmailViaProvider({
                 to,
                 subject,
                 body,
-                from: orgSettings.email_provider_address || undefined,
+                from: tokens.email || orgSettings.email_provider_address || undefined,
             })
         }
 
         case 'microsoft': {
-            const tokens = orgSettings.email_provider_tokens
+            const tokens = orgSettings.email_provider_tokens?.microsoft
             if (!tokens?.access_token) {
                 throw new Error('Microsoft-tokens saknas. Koppla om Outlook under E-post & SMS.')
             }

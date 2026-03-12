@@ -52,21 +52,24 @@ export async function PATCH(request: Request) {
 
             const { data: settings } = await admin
                 .from('org_settings')
-                .select('agentmail_inbox_id, step_delays')
+                .select('agentmail_inbox_id, step_delays, email_provider, email_provider_address, email_provider_tokens')
                 .eq('org_id', draft.org_id)
                 .single()
 
             let sentResult: { messageId?: string; threadId?: string } = {}
 
-            if (settings?.agentmail_inbox_id) {
-                const { sendCollectionEmail } = await import('@/lib/email/agentmail')
-                sentResult = await sendCollectionEmail({
-                    inboxId: settings.agentmail_inbox_id,
-                    to: draft.to,
-                    subject: draft.subject,
-                    body: draft.body,
-                })
-            }
+            const { sendEmailViaProvider } = await import('@/lib/email/send')
+            sentResult = await sendEmailViaProvider({
+                to: draft.to,
+                subject: draft.subject,
+                body: draft.body,
+                orgSettings: {
+                    email_provider: settings?.email_provider ?? 'agentmail',
+                    email_provider_address: settings?.email_provider_address,
+                    email_provider_tokens: settings?.email_provider_tokens,
+                    agentmail_inbox_id: settings?.agentmail_inbox_id,
+                },
+            })
 
             // Uppdatera draften till 'sent'
             await admin

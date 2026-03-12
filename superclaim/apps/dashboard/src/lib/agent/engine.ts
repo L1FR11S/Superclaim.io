@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { generateCollectionEmail, generateCollectionSms, generatePreReminderEmail, generatePreReminderSms } from './gemini'
-import { sendCollectionEmail } from '@/lib/email/agentmail'
+import { sendEmailViaProvider } from '@/lib/email/send'
 import { sendSms } from '@/lib/sms/elks'
 
 // ─── Types ──────────────────────────────────────────
@@ -38,11 +38,18 @@ interface OrgSettings {
     email_provider?: 'agentmail' | 'google' | 'microsoft' | 'custom_domain'
     email_provider_address?: string | null
     email_provider_tokens?: {
-        access_token?: string
-        refresh_token?: string
-        expiry_date?: number
-        expires_on?: string
-        account?: any
+        google?: {
+            access_token?: string
+            refresh_token?: string
+            expiry_date?: number
+            email?: string
+        }
+        microsoft?: {
+            access_token?: string
+            expires_on?: string
+            account?: any
+            email?: string
+        }
     } | null
 }
 
@@ -211,9 +218,9 @@ async function executeNode(
                 })
                 result.actions.push(`E-post utkast (steg ${step}): "${email.subject}" — sparad för granskning (email_preview=true)`)
             } else {
-                const sent = await sendCollectionEmail({
-                    inboxId: orgSettings.agentmail_inbox_id!,
+                const sent = await sendEmailViaProvider({
                     to: claim.debtor_email, subject: email.subject, body: email.body,
+                    orgSettings,
                 })
                 await supabaseAdmin.from('claim_communications').insert({
                     claim_id: claim.id, org_id: claim.org_id,
@@ -438,9 +445,9 @@ async function processClaimLegacy(
             step: nextStep, status: 'pending',
         })
     } else {
-        const sent = await sendCollectionEmail({
-            inboxId: orgSettings.agentmail_inbox_id!,
+        const sent = await sendEmailViaProvider({
             to: claim.debtor_email, subject: email.subject, body: email.body,
+            orgSettings,
         })
         await supabaseAdmin.from('claim_communications').insert({
             claim_id: claim.id, org_id: claim.org_id,
@@ -549,30 +556,28 @@ async function processPreDueReminder(
                 result.actions.push(`${claim.debtor_name}: Förvarnings-e-post skapad som utkast (förfaller om ${daysUntilDue}d)`)
                 reminderSent = true
             } else {
-                // Send directly — same pattern as the working collection flow
-                if (orgSettings.agentmail_inbox_id) {
-                    const sent = await sendCollectionEmail({
-                        inboxId: orgSettings.agentmail_inbox_id,
-                        to: claim.debtor_email,
-                        subject: email.subject,
-                        body: email.body,
-                    })
-                    await supabaseAdmin.from('claim_communications').insert({
-                        claim_id: claim.id, org_id: claim.org_id,
-                        step: 0, channel: 'email', direction: 'outbound',
-                        subject: email.subject, body: email.body,
-                        agentmail_message_id: sent.messageId, agentmail_thread_id: sent.threadId,
-                    })
-                    if (sent.threadId && !claim.agentmail_thread_id) {
-                        await supabaseAdmin.from('claims').update({
-                            agentmail_thread_id: sent.threadId,
-                        }).eq('id', claim.id)
-                        claim.agentmail_thread_id = sent.threadId
-                    }
-                    result.emailsSent++
-                    result.actions.push(`Pre-due e-post skickad: "${email.subject}" → ${claim.debtor_email}`)
-                    reminderSent = true
+                // Send directly via selected provider
+                const sent = await sendEmailViaProvider({
+                    to: claim.debtor_email,
+                    subject: email.subject,
+                    body: email.body,
+                    orgSettings,
+                })
+                await supabaseAdmin.from('claim_communications').insert({
+                    claim_id: claim.id, org_id: claim.org_id,
+                    step: 0, channel: 'email', direction: 'outbound',
+                    subject: email.subject, body: email.body,
+                    agentmail_message_id: sent.messageId, agentmail_thread_id: sent.threadId,
+                })
+                if (sent.threadId && !claim.agentmail_thread_id) {
+                    await supabaseAdmin.from('claims').update({
+                        agentmail_thread_id: sent.threadId,
+                    }).eq('id', claim.id)
+                    claim.agentmail_thread_id = sent.threadId
                 }
+                result.emailsSent++
+                result.actions.push(`Pre-due e-post skickad: "${email.subject}" → ${claim.debtor_email}`)
+                reminderSent = true
             }
         } catch (err: any) {
             result.errors.push(`Pre-reminder email ${claim.id}: ${err.message}`)
@@ -677,7 +682,7 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
 
         const stepDelays = settings?.step_delays ?? { step1: 3, step2: 7, step3: 7, step4: 8 }
 
-        if (!orgSettings.agentmail_inbox_id) {
+        if (!orgSettings.agentmail_inbox_id && orgSettings.email_provider === 'agentmail') {
             result.errors.push('No AgentMail inbox configured')
             await finalizeRun(run?.id, result, 'failed')
             return result

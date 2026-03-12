@@ -2,12 +2,13 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
 import { sendCollectionEmail, replyToMessage } from '@/lib/email/agentmail'
+import { sendEmailViaProvider } from '@/lib/email/send'
 
 /**
  * POST /api/claims/[id]/reply
  * Send a manual reply to a debtor from the dashboard.
  * If messageId is provided, replies in the same thread via reply-all.
- * Otherwise sends a new email.
+ * Otherwise sends a new email via selected provider.
  */
 export async function POST(
     request: Request,
@@ -39,16 +40,12 @@ export async function POST(
             .single()
         if (!claim) return NextResponse.json({ error: 'Claim not found' }, { status: 404 })
 
-        // Get org settings for inbox
+        // Get org settings for inbox + email provider
         const { data: settings } = await admin
             .from('org_settings')
-            .select('agentmail_inbox_id')
+            .select('agentmail_inbox_id, email_provider, email_provider_address, email_provider_tokens')
             .eq('org_id', org.id)
             .single()
-
-        if (!settings?.agentmail_inbox_id) {
-            return NextResponse.json({ error: 'Ingen AgentMail-inbox konfigurerad' }, { status: 400 })
-        }
 
         const body = await request.json()
         const { subject, message, messageId } = body
@@ -59,20 +56,25 @@ export async function POST(
 
         let sent: any
 
-        if (messageId) {
-            // Reply in same thread via reply-all
+        if (messageId && settings?.agentmail_inbox_id) {
+            // Reply in same thread via AgentMail reply-all
             sent = await replyToMessage({
                 inboxId: settings.agentmail_inbox_id,
                 messageId,
                 body: message,
             })
         } else {
-            // New email
-            sent = await sendCollectionEmail({
-                inboxId: settings.agentmail_inbox_id,
+            // New email — route via selected provider
+            sent = await sendEmailViaProvider({
                 to: claim.debtor_email,
                 subject: subject || `Re: Ärende ${claim.debtor_name}`,
                 body: message,
+                orgSettings: {
+                    email_provider: settings?.email_provider ?? 'agentmail',
+                    email_provider_address: settings?.email_provider_address,
+                    email_provider_tokens: settings?.email_provider_tokens,
+                    agentmail_inbox_id: settings?.agentmail_inbox_id,
+                },
             })
         }
 

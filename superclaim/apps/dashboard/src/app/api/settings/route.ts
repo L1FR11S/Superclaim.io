@@ -20,7 +20,6 @@ export async function GET() {
             return NextResponse.json({
                 tone: 'professional',
                 step_delays: { step1: 3, step2: 7, step3: 7, step4: 8 },
-                sms_enabled: false,
                 email_preview: true,
                 agentmail_inbox_id: null,
                 source: 'default',
@@ -37,7 +36,6 @@ export async function GET() {
             return NextResponse.json({
                 tone: 'professional',
                 step_delays: { step1: 3, step2: 7, step3: 7, step4: 8 },
-                sms_enabled: false,
                 email_preview: true,
                 agentmail_inbox_id: null,
                 source: 'default',
@@ -68,7 +66,7 @@ export async function PUT(request: Request) {
 
         const body = await request.json()
         const {
-            tone, step_delays, sms_enabled, email_preview, agent_flow,
+            tone, step_delays, email_preview, agent_flow,
             sms_preview, fortnox_auto_import, sms_sender_name,
             pre_reminder_enabled, pre_reminder_days, pre_reminder_channels,
         } = body
@@ -79,7 +77,6 @@ export async function PUT(request: Request) {
                 org_id: org.id,
                 ...(tone !== undefined && { tone }),
                 ...(step_delays !== undefined && { step_delays }),
-                ...(sms_enabled !== undefined && { sms_enabled }),
                 ...(email_preview !== undefined && { email_preview }),
                 ...(agent_flow !== undefined && { agent_flow }),
                 ...(sms_preview !== undefined && { sms_preview }),

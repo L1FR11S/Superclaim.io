@@ -28,7 +28,6 @@ interface AgentFlow {
 
 interface OrgSettings {
     tone: 'professional' | 'friendly' | 'direct'
-    sms_enabled: boolean
     sms_preview: boolean
     email_preview: boolean
     agentmail_inbox_id: string | null
@@ -452,7 +451,7 @@ async function processClaimLegacy(
     }
 
     // SMS at step 3+
-    if (orgSettings.sms_enabled && claim.debtor_phone && nextStep >= 3) {
+    if (claim.debtor_phone && nextStep >= 3) {
         try {
             const smsFrom = orgSettings.sms_sender_name || orgName
             const smsMessage = await generateCollectionSms({
@@ -572,7 +571,7 @@ async function processPreDueReminder(
         }
     }
 
-    // ── SMS reminder ── (pre_reminder_channels styr, inte sms_enabled)
+    // ── SMS reminder ──
     if ((channels === 'sms' || channels === 'both') && claim.debtor_phone) {
         try {
             const smsBody = await generatePreReminderSms({
@@ -656,7 +655,6 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
 
         const orgSettings: OrgSettings = {
             tone: settings?.tone ?? 'professional',
-            sms_enabled: settings?.sms_enabled ?? false,
             sms_preview: settings?.sms_preview ?? true,
             email_preview: settings?.email_preview ?? true,
             agentmail_inbox_id: settings?.agentmail_inbox_id ?? null,

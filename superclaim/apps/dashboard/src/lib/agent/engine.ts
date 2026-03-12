@@ -502,6 +502,7 @@ async function processPreDueReminder(
     const channels = orgSettings.pre_reminder_channels || 'email'
 
     console.log(`[Agent] Pre-due reminder for ${claim.debtor_name} — ${daysUntilDue} days until due`)
+    console.log(`[Agent] Pre-due config: channels=${channels}, debtor_email=${claim.debtor_email || 'NULL'}, debtor_phone=${claim.debtor_phone || 'NULL'}, sms_enabled=${orgSettings.sms_enabled}, email_preview=${orgSettings.email_preview}`)
 
     // ── Email reminder ──
     if ((channels === 'email' || channels === 'both') && claim.debtor_email) {
@@ -654,6 +655,9 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
             agentmail_inbox_id: settings?.agentmail_inbox_id ?? null,
             sms_sender_name: settings?.sms_sender_name ?? null,
             agent_flow: settings?.agent_flow ?? null,
+            pre_reminder_enabled: settings?.pre_reminder_enabled ?? false,
+            pre_reminder_days: settings?.pre_reminder_days ?? 5,
+            pre_reminder_channels: settings?.pre_reminder_channels ?? 'email',
         }
 
         const stepDelays = settings?.step_delays ?? { step1: 3, step2: 7, step3: 7, step4: 8 }

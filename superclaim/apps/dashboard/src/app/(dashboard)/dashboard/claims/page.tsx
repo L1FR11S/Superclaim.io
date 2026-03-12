@@ -351,12 +351,9 @@ export default function ClaimsListPage() {
                                         if (isPreDue && daysUntilDue > 0) {
                                             const color = daysUntilDue > 5 ? 'text-emerald-400' : daysUntilDue > 2 ? 'text-amber-400' : 'text-orange-400';
                                             return (
-                                                <div className="flex flex-col">
-                                                    <span className={color + ' font-medium'}>
-                                                        {dueDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                    </span>
-                                                    <span className={`text-xs ${color} opacity-70`}>{daysUntilDue}d kvar</span>
-                                                </div>
+                                                <span className={color + ' font-medium'}>
+                                                    {dueDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </span>
                                             );
                                         }
 

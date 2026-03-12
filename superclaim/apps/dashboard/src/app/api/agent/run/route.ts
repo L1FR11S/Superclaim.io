@@ -42,17 +42,25 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/agent/run
- * Manuell trigger från dashboard / Test Panel.
- * Kräver inloggad Supabase-session (räcker för Test Panel).
+ * Triggered by QStash cron OR manual trigger from dashboard / Test Panel.
+ * Accepts:
+ *   1. QStash signature (upstash-signature header)
+ *   2. Inloggad Supabase-session (för Test Panel / Dashboard)
  */
 export async function POST(_request: NextRequest) {
     try {
-        const { createClient } = await import('@/utils/supabase/server')
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
+        // Check QStash signature first (cron-anrop)
+        const isQStash = await verifyQStashRequest(_request)
 
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized — login required' }, { status: 401 })
+        if (!isQStash) {
+            // Fallback: kräv inloggad Supabase-session (manuell trigger)
+            const { createClient } = await import('@/utils/supabase/server')
+            const supabase = await createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+
+            if (!user) {
+                return NextResponse.json({ error: 'Unauthorized — login or QStash signature required' }, { status: 401 })
+            }
         }
 
         const results = await runAgentForAllOrgs()

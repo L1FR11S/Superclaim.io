@@ -301,12 +301,15 @@ export function buildPreReminderSmsPrompt(params: {
     currency: string
     dueDate: string
     daysUntilDue: number
+    invoiceUrl?: string | null
 }): string {
     return `Påminnelse-SMS (MAX 160 TECKEN):
 MOTTAGARE: ${params.debtorName}
 BELOPP: ${params.amount.toLocaleString('sv-SE')} ${params.currency}
 FÖRFALLODATUM: ${params.dueDate}
 DAGAR KVAR: ${params.daysUntilDue} dagar
+${params.invoiceUrl ? `FAKTURALÄNK: ${params.invoiceUrl}` : ''}
 
+${params.invoiceUrl ? 'Inkludera fakturalänken i slutet av SMS:et.' : ''}
 Svara ENBART med JSON.`
 }

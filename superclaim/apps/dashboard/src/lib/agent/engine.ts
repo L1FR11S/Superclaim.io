@@ -3,6 +3,7 @@ import { generateCollectionEmail, generateCollectionSms, generatePreReminderEmai
 import { sendEmailViaProvider } from '@/lib/email/send'
 import type { EmailAttachment } from '@/lib/email/send'
 import { sendSms } from '@/lib/sms/elks'
+import { getInvoiceUrl } from '@/lib/invoice-url'
 
 // ─── Helpers ────────────────────────────────────────
 
@@ -304,7 +305,7 @@ async function executeNode(
                         debtorName: claim.debtor_name,
                         amount: claim.amount,
                         currency: claim.currency,
-                        invoiceUrl: claim.attachment_url,
+                        invoiceUrl: claim.attachment_url ? getInvoiceUrl(claim.id) : null,
                         step: smsStep,
                     })
 
@@ -505,7 +506,7 @@ async function processClaimLegacy(
             const smsMessage = await generateCollectionSms({
                 creditorName: orgName,
                 debtorName: claim.debtor_name, amount: claim.amount,
-                currency: claim.currency, invoiceUrl: claim.attachment_url, step: nextStep,
+                currency: claim.currency, invoiceUrl: claim.attachment_url ? getInvoiceUrl(claim.id) : null, step: nextStep,
             })
             const smsResult = await sendSms({ from: smsFrom, to: claim.debtor_phone, message: smsMessage })
             await supabaseAdmin.from('claim_communications').insert({
@@ -671,6 +672,7 @@ async function processPreDueReminder(
                 currency: claim.currency,
                 dueDate: claim.due_date,
                 daysUntilDue,
+                invoiceUrl: claim.attachment_url ? getInvoiceUrl(claim.id) : null,
             })
 
             if (orgSettings.sms_preview) {

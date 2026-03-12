@@ -152,6 +152,7 @@ export async function generatePreReminderSms(params: {
     currency: string
     dueDate: string
     daysUntilDue: number
+    invoiceUrl?: string | null
 }): Promise<string> {
     const userPrompt = buildPreReminderSmsPrompt(params)
 

@@ -27,7 +27,6 @@ interface AgentFlow {
 }
 
 interface OrgSettings {
-    tone: 'professional' | 'friendly' | 'direct'
     sms_preview: boolean
     email_preview: boolean
     agentmail_inbox_id: string | null
@@ -151,7 +150,7 @@ async function executeNode(
         }
 
         case 'email': {
-            const tone = node.data.tone || orgSettings.tone || 'professional'
+            const tone = node.data.tone || 'professional'
             const step = claim.current_step + 1
 
             // ─── Deduplication guard ─────────────────────────────────────
@@ -419,7 +418,7 @@ async function processClaimLegacy(
         invoiceNumber: claim.invoice_number || '',
         dueDate: new Date(claim.due_date).toLocaleDateString('sv-SE'),
         step: nextStep,
-        tone: orgSettings.tone,
+        tone: 'professional',
     })
     result.emailsGenerated++
 
@@ -427,7 +426,7 @@ async function processClaimLegacy(
         await supabaseAdmin.from('email_drafts').insert({
             claim_id: claim.id, org_id: claim.org_id,
             to: claim.debtor_email, subject: email.subject, body: email.body,
-            tone: orgSettings.tone, step: nextStep, status: 'pending',
+            step: nextStep, status: 'pending',
         })
     } else {
         const sent = await sendCollectionEmail({
@@ -654,7 +653,6 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
         const orgName = org?.name || 'Superclaim'
 
         const orgSettings: OrgSettings = {
-            tone: settings?.tone ?? 'professional',
             sms_preview: settings?.sms_preview ?? true,
             email_preview: settings?.email_preview ?? true,
             agentmail_inbox_id: settings?.agentmail_inbox_id ?? null,

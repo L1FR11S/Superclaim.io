@@ -18,7 +18,6 @@ export async function GET() {
 
         if (!org) {
             return NextResponse.json({
-                tone: 'professional',
                 step_delays: { step1: 3, step2: 7, step3: 7, step4: 8 },
                 email_preview: true,
                 agentmail_inbox_id: null,
@@ -34,7 +33,6 @@ export async function GET() {
 
         if (!settings) {
             return NextResponse.json({
-                tone: 'professional',
                 step_delays: { step1: 3, step2: 7, step3: 7, step4: 8 },
                 email_preview: true,
                 agentmail_inbox_id: null,
@@ -65,13 +63,12 @@ export async function PUT(request: Request) {
         if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
 
         const body = await request.json()
-        const { tone, step_delays, email_preview, agent_flow, sms_preview } = body
+        const { step_delays, email_preview, agent_flow, sms_preview } = body
 
         const { data, error } = await admin
             .from('org_settings')
             .upsert({
                 org_id: org.id,
-                ...(tone !== undefined && { tone }),
                 ...(step_delays !== undefined && { step_delays }),
                 ...(email_preview !== undefined && { email_preview }),
                 ...(agent_flow !== undefined && { agent_flow }),

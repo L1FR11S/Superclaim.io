@@ -4,12 +4,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function proxy(request: NextRequest) {
     const path = request.nextUrl.pathname
 
-    // Only API, static files and auth routes are public on app.superclaim.io
+    // Only API, static files, auth routes and invoice short URLs are public on app.superclaim.io
     const isApiRoute = path.startsWith('/api/')
     const isStaticFile = path.startsWith('/_next/') || path.includes('.')
     const isAuthRoute = path.startsWith('/auth/')
+    const isInvoiceUrl = path.startsWith('/f/')
 
-    if (isApiRoute || isStaticFile || isAuthRoute) {
+    if (isApiRoute || isStaticFile || isAuthRoute || isInvoiceUrl) {
         return NextResponse.next()
     }
 

@@ -52,6 +52,30 @@ export async function getMicrosoftEmail(accessToken: string): Promise<string> {
     return data.mail || data.userPrincipalName || ''
 }
 
+/**
+ * Wrap plain text body in a minimal HTML template for proper email rendering.
+ * If body already contains HTML tags, use as-is.
+ */
+function wrapBodyAsHtml(body: string): string {
+    if (/<[a-z][\s\S]*>/i.test(body)) {
+        return body
+    }
+    const htmlBody = body
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+    
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 600px;">
+<p>${htmlBody}</p>
+</body>
+</html>`
+}
+
 export async function sendMicrosoftEmail({
     accessToken,
     to,
@@ -72,7 +96,7 @@ export async function sendMicrosoftEmail({
         body: JSON.stringify({
             message: {
                 subject,
-                body: { contentType: 'HTML', content: body },
+                body: { contentType: 'HTML', content: wrapBodyAsHtml(body) },
                 toRecipients: [{ emailAddress: { address: to } }],
             },
         }),

@@ -36,6 +36,44 @@ export async function refreshGoogleToken(refreshToken: string) {
     return credentials
 }
 
+/**
+ * Encode a subject line with RFC 2047 for proper UTF-8 support (å, ä, ö etc.)
+ */
+function encodeSubject(subject: string): string {
+    // Check if subject contains non-ASCII characters
+    if (/[^\x00-\x7F]/.test(subject)) {
+        const encoded = Buffer.from(subject, 'utf-8').toString('base64')
+        return `=?UTF-8?B?${encoded}?=`
+    }
+    return subject
+}
+
+/**
+ * Wrap plain text body in a minimal HTML template for proper email rendering.
+ * If body already contains HTML tags, use as-is.
+ */
+function wrapBodyAsHtml(body: string): string {
+    // If already HTML, return as-is
+    if (/<[a-z][\s\S]*>/i.test(body)) {
+        return body
+    }
+    // Convert plain text to HTML: newlines → <br>, preserve paragraphs
+    const htmlBody = body
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+    
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 600px;">
+<p>${htmlBody}</p>
+</body>
+</html>`
+}
+
 export async function sendGmailEmail({
     accessToken,
     refreshToken,
@@ -58,15 +96,32 @@ export async function sendGmailEmail({
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
 
-    // Build RFC 2822 message
+    const htmlBody = wrapBodyAsHtml(body)
+    const encodedSubject = encodeSubject(subject)
+
+    // Build RFC 2822 message with MIME boundary for proper HTML email
+    const boundary = `boundary_${Date.now()}`
     const fromHeader = from ? `From: ${from}` : ''
     const rawMessage = [
         fromHeader,
         `To: ${to}`,
-        `Subject: ${subject}`,
-        'Content-Type: text/html; charset=utf-8',
+        `Subject: ${encodedSubject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
         '',
-        body,
+        `--${boundary}`,
+        'Content-Type: text/plain; charset=utf-8',
+        'Content-Transfer-Encoding: base64',
+        '',
+        Buffer.from(body, 'utf-8').toString('base64'),
+        '',
+        `--${boundary}`,
+        'Content-Type: text/html; charset=utf-8',
+        'Content-Transfer-Encoding: base64',
+        '',
+        Buffer.from(htmlBody, 'utf-8').toString('base64'),
+        '',
+        `--${boundary}--`,
     ].filter(Boolean).join('\r\n')
 
     const encodedMessage = Buffer.from(rawMessage)

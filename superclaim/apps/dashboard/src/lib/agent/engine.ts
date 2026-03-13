@@ -548,7 +548,7 @@ async function processPreDueReminder(
 ) {
     const now = new Date()
     const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    const channels = orgSettings.pre_reminder_channels || 'email'
+    const channels = orgSettings.pre_reminder_channels || 'both'
 
     console.log(`[Agent] Pre-due reminder for ${claim.debtor_name} — ${daysUntilDue} days until due`)
     console.log(`[Agent] Pre-due config: channels=${channels}, debtor_email=${claim.debtor_email || 'NULL'}, debtor_phone=${claim.debtor_phone || 'NULL'}, email_preview=${orgSettings.email_preview}`)
@@ -778,7 +778,7 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
             agent_flow: settings?.agent_flow ?? null,
             pre_reminder_enabled: settings?.pre_reminder_enabled ?? false,
             pre_reminder_days: settings?.pre_reminder_days ?? 5,
-            pre_reminder_channels: settings?.pre_reminder_channels ?? 'email',
+            pre_reminder_channels: settings?.pre_reminder_channels ?? 'both',
             email_provider: settings?.email_provider ?? 'agentmail',
             email_provider_address: settings?.email_provider_address ?? null,
             email_provider_tokens: settings?.email_provider_tokens ?? null,

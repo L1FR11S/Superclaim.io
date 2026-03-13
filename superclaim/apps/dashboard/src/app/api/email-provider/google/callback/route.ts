@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/admin'
-import { exchangeGoogleCode, getGoogleEmail, watchGmailInbox } from '@/lib/email/gmail'
+import { exchangeGoogleCode, getGoogleProfile, watchGmailInbox } from '@/lib/email/gmail'
 
 export async function GET(request: NextRequest) {
     try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
         const { orgId } = JSON.parse(Buffer.from(state, 'base64url').toString())
         const tokens = await exchangeGoogleCode(code)
-        const email = await getGoogleEmail(tokens.access_token!)
+        const { email, name } = await getGoogleProfile(tokens.access_token!)
 
         const admin = createAdminClient()
 
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
                     refresh_token: tokens.refresh_token,
                     expiry_date: tokens.expiry_date,
                     email,
+                    name: name || undefined,
                     watch_expiration: watchExpiration || undefined,
                     watch_history_id: watchHistoryId || undefined,
                 },

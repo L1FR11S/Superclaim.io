@@ -25,6 +25,7 @@ interface OrgEmailSettings {
             refresh_token?: string
             expiry_date?: number
             email?: string
+            name?: string
         }
         microsoft?: {
             access_token?: string
@@ -79,6 +80,8 @@ export async function sendEmailViaProvider({
                 to,
                 subject,
                 body,
+                from: tokens.email || orgSettings.email_provider_address || undefined,
+                fromName: tokens.name || undefined,
                 threadId,
                 inReplyTo,
                 attachments,

@@ -24,11 +24,11 @@ export async function exchangeGoogleCode(code: string) {
     return tokens // { access_token, refresh_token, expiry_date }
 }
 
-export async function getGoogleEmail(accessToken: string): Promise<string> {
+export async function getGoogleProfile(accessToken: string): Promise<{ email: string; name: string }> {
     oauth2Client.setCredentials({ access_token: accessToken })
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client })
     const { data } = await oauth2.userinfo.get()
-    return data.email || ''
+    return { email: data.email || '', name: data.name || '' }
 }
 
 export async function refreshGoogleToken(refreshToken: string) {

@@ -52,10 +52,15 @@ export default function DashboardPage() {
     const [data, setData] = useState<DashboardData | null>(null);
 
     useEffect(() => {
-        fetch('/api/claims')
-            .then(res => res.json())
-            .then(setData)
-            .catch(() => { });
+        const fetchData = () => {
+            fetch('/api/claims')
+                .then(res => res.json())
+                .then(setData)
+                .catch(() => { });
+        };
+        fetchData();
+        const interval = setInterval(fetchData, 15000);
+        return () => clearInterval(interval);
     }, []);
 
     if (!data) {

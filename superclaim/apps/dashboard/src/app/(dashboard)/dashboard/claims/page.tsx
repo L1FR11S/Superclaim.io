@@ -70,8 +70,8 @@ export default function ClaimsListPage() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [deleteLoading, setDeleteLoading] = useState(false);
 
-    const loadClaims = () => {
-        setLoading(true);
+    const loadClaims = (silent = false) => {
+        if (!silent) setLoading(true);
         fetch('/api/claims')
             .then((res) => res.json())
             .then((data) => {
@@ -80,14 +80,16 @@ export default function ClaimsListPage() {
                     days_overdue: c.days_overdue ?? Math.max(0, Math.floor((Date.now() - new Date(c.due_date).getTime()) / 86400000)),
                 }));
                 setClaims(list);
-                setLoading(false);
+                if (!silent) setLoading(false);
             })
-            .catch(() => setLoading(false));
+            .catch(() => { if (!silent) setLoading(false); });
     };
 
     useEffect(() => {
         loadClaims();
         fetch('/api/fortnox/status').then(r => r.json()).then(d => setFortnoxConnected(d.connected || false)).catch(() => { });
+        const interval = setInterval(() => loadClaims(true), 15000);
+        return () => clearInterval(interval);
     }, []);
 
     const filtered = claims.filter((c) => {

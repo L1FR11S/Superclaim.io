@@ -17,6 +17,7 @@ interface TimelineEvent {
     openedAt?: string | null;
     status?: 'sent' | 'draft';
     agentmail_message_id?: string | null;
+    agentmail_thread_id?: string | null;
     draftId?: string;
     draftType?: 'email' | 'sms';
 }
@@ -85,8 +86,13 @@ export function Timeline({ events, claimId, onReplySent, onDraftAction }: Timeli
                     const isSms = event.channel === 'sms';
                     const isPreReminder = event.step === 0;
                     const isReplying = replyingTo === i;
+
+                    // Thread grouping: indent inbound replies that share a thread_id with a parent outbound message
+                    const isThreadedReply = isInbound && event.agentmail_thread_id &&
+                        events.some((e, j) => j < i && e.direction === 'outbound' && e.agentmail_thread_id === event.agentmail_thread_id);
+
                     return (
-                        <div key={i} className={cn("relative flex gap-4 pl-2", isManualReply && "ml-8")}>
+                        <div key={i} className={cn("relative flex gap-4 pl-2", (isManualReply || isThreadedReply) && "ml-8")}>
                             {/* Dot */}
                             <div className={cn(
                                 "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",

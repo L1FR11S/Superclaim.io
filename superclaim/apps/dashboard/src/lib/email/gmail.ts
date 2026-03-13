@@ -206,6 +206,9 @@ export async function sendGmailEmail({
     subject,
     body,
     from,
+    fromName,
+    threadId,
+    inReplyTo,
     attachments,
 }: {
     accessToken: string
@@ -214,6 +217,9 @@ export async function sendGmailEmail({
     subject: string
     body: string
     from?: string
+    fromName?: string
+    threadId?: string
+    inReplyTo?: string
     attachments?: { filename: string; content: Buffer; contentType: string }[]
 }) {
     oauth2Client.setCredentials({
@@ -251,12 +257,23 @@ export async function sendGmailEmail({
 
     let rawMessage: string
 
+    // Build From header with display name if available
+    const fromHeader = from
+        ? (fromName ? `From: "${fromName}" <${from}>` : `From: ${from}`)
+        : undefined
+
+    // Reply headers for threading
+    const replyHeaders = inReplyTo
+        ? [`In-Reply-To: ${inReplyTo}`, `References: ${inReplyTo}`]
+        : []
+
     if (hasAttachments) {
         // Multipart/mixed: alternative body + attachments
         const headers = [
-            ...(from ? [`From: ${from}`] : []),
+            ...(fromHeader ? [fromHeader] : []),
             `To: ${to}`,
             `Subject: ${encodedSubject}`,
+            ...replyHeaders,
             `MIME-Version: 1.0`,
             `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
         ].join('\r\n')
@@ -283,9 +300,10 @@ export async function sendGmailEmail({
     } else {
         // No attachments — just multipart/alternative
         const headers = [
-            ...(from ? [`From: ${from}`] : []),
+            ...(fromHeader ? [fromHeader] : []),
             `To: ${to}`,
             `Subject: ${encodedSubject}`,
+            ...replyHeaders,
             `MIME-Version: 1.0`,
             `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
         ].join('\r\n')
@@ -317,7 +335,10 @@ export async function sendGmailEmail({
 
     const result = await gmail.users.messages.send({
         userId: 'me',
-        requestBody: { raw: encodedMessage },
+        requestBody: {
+            raw: encodedMessage,
+            ...(threadId ? { threadId } : {}),
+        },
     })
 
     return {

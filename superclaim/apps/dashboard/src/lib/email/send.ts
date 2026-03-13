@@ -42,6 +42,9 @@ interface SendEmailParams {
     body: string
     orgSettings: OrgEmailSettings
     attachments?: EmailAttachment[]
+    threadId?: string
+    inReplyTo?: string
+    fromName?: string
 }
 
 export async function sendEmailViaProvider({
@@ -50,6 +53,9 @@ export async function sendEmailViaProvider({
     body,
     orgSettings,
     attachments,
+    threadId,
+    inReplyTo,
+    fromName,
 }: SendEmailParams): Promise<{ messageId: string; threadId: string }> {
     const provider = orgSettings.email_provider || 'agentmail'
 
@@ -73,7 +79,8 @@ export async function sendEmailViaProvider({
                 to,
                 subject,
                 body,
-                from: tokens.email || orgSettings.email_provider_address || undefined,
+                threadId,
+                inReplyTo,
                 attachments,
             })
         }

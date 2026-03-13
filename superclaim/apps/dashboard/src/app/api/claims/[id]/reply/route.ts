@@ -64,7 +64,23 @@ export async function POST(
                 body: message,
             })
         } else {
-            // Send via configured provider (Gmail, AgentMail new email, etc.)
+            // For Gmail/other: find original thread to reply in-thread
+            let gmailThreadId: string | undefined
+            let inReplyToId: string | undefined
+            if (messageId) {
+                // Lookup the original communication for its threadId
+                const { data: origComm } = await admin
+                    .from('claim_communications')
+                    .select('agentmail_thread_id, agentmail_message_id')
+                    .eq('claim_id', id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single()
+                if (origComm?.agentmail_thread_id) gmailThreadId = origComm.agentmail_thread_id
+                if (origComm?.agentmail_message_id) inReplyToId = origComm.agentmail_message_id
+            }
+
+            // Send via configured provider (Gmail, etc.)
             sent = await sendEmailViaProvider({
                 to: claim.debtor_email,
                 subject: subject || `Re: Ärende ${claim.debtor_name}`,
@@ -75,6 +91,8 @@ export async function POST(
                     email_provider_tokens: settings?.email_provider_tokens,
                     agentmail_inbox_id: settings?.agentmail_inbox_id,
                 },
+                threadId: gmailThreadId,
+                inReplyTo: inReplyToId,
             })
         }
 

@@ -706,6 +706,7 @@ async function processPreDueReminder(
                 reminderSent = true
             }
         } catch (err: any) {
+            console.error(`[Agent] Pre-reminder SMS FAILED for ${claim.debtor_name}:`, err.message)
             result.errors.push(`Pre-reminder SMS ${claim.id}: ${err.message}`)
         }
     }
@@ -720,7 +721,7 @@ async function processPreDueReminder(
             updated_at: now.toISOString(),
         }).eq('id', claim.id)
     } else {
-        console.log(`[Agent] Pre-due: No reminder sent for ${claim.debtor_name} — no valid channel/contact info`)
+        console.error(`[Agent] Pre-due: No reminder sent for ${claim.debtor_name} — channels=${channels}, email=${claim.debtor_email || 'NULL'}, phone=${claim.debtor_phone || 'NULL'}, emailSent=${emailAlreadySent}, smsSent=${smsAlreadySent}, errors=${JSON.stringify(result.errors)}`)
     }
 
     result.claimsProcessed++

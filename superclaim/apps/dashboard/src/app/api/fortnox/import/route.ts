@@ -1,11 +1,11 @@
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
-import { fetchOverdueInvoices, fetchCustomer, fetchInvoicePdf, uploadInvoicePdf } from '@/lib/fortnox/fortnox'
+import { fetchOverdueInvoices, fetchUpcomingInvoices, fetchCustomer, fetchInvoicePdf, uploadInvoicePdf } from '@/lib/fortnox/fortnox'
 
 /**
  * POST /api/fortnox/import
- * Import overdue invoices from Fortnox → create claims
+ * Import overdue + upcoming invoices from Fortnox → create claims
  */
 export async function POST() {
     try {
@@ -23,10 +23,10 @@ export async function POST() {
 
         if (!org) return NextResponse.json({ error: 'Organisation saknas' }, { status: 400 })
 
-        // Check Fortnox connection
+        // Check Fortnox connection + pre-reminder settings
         const { data: settings } = await admin
             .from('org_settings')
-            .select('fortnox_connected, agent_flow')
+            .select('fortnox_connected, agent_flow, pre_reminder_enabled, pre_reminder_days')
             .eq('org_id', org.id)
             .single()
 
@@ -35,11 +35,29 @@ export async function POST() {
         }
 
         // Fetch overdue invoices
-        const invoices = await fetchOverdueInvoices(org.id)
+        const overdueInvoices = await fetchOverdueInvoices(org.id)
+
+        // Also fetch upcoming invoices if pre-reminder is enabled
+        let upcomingInvoices: any[] = []
+        if (settings.pre_reminder_enabled) {
+            const daysAhead = settings.pre_reminder_days ?? 5
+            upcomingInvoices = await fetchUpcomingInvoices(org.id, daysAhead)
+        }
+
+        // Merge and deduplicate by DocumentNumber
+        const seen = new Set<string>()
+        const invoices: any[] = []
+        for (const inv of [...overdueInvoices, ...upcomingInvoices]) {
+            const docNum = String(inv.DocumentNumber)
+            if (!seen.has(docNum)) {
+                seen.add(docNum)
+                invoices.push(inv)
+            }
+        }
 
         if (!invoices.length) {
             return NextResponse.json({
-                message: 'Inga förfallna fakturor hittades',
+                message: 'Inga fakturor hittades',
                 imported: 0,
                 skipped: 0,
             })

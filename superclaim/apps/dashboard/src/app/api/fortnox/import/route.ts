@@ -110,6 +110,11 @@ export async function POST() {
                     }
                 } catch { /* PDF ej kritisk — fortsätt utan */ }
 
+                // Determine if invoice is pre-due (not yet overdue) or overdue
+                const dueDate = invoice.DueDate ? new Date(invoice.DueDate) : null
+                const today = new Date()
+                const isPreDue = dueDate && dueDate > today
+
                 // Create claim
                 await admin.from('claims').insert({
                     org_id: org.id,
@@ -125,6 +130,7 @@ export async function POST() {
                     source: 'fortnox',
                     attachment_url: attachmentUrl,
                     agent_flow: settings?.agent_flow ?? null,
+                    ...(isPreDue ? { stage: 'pre_due', next_action_at: today.toISOString() } : {}),
                 })
 
                 imported++

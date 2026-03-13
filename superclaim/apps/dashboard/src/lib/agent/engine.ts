@@ -823,6 +823,19 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
                     continue // Skip normal collection flow
                 }
 
+                // Safety: if claim has no stage but due date hasn't passed yet, don't start collection
+                if (!claimStage && dueDate && dueDate > nowDate && orgSettings.pre_reminder_enabled) {
+                    // Auto-fix: set stage to pre_due
+                    await supabaseAdmin.from('claims').update({ stage: 'pre_due' }).eq('id', claim.id)
+                    await processPreDueReminder(claim, orgSettings, orgName, dueDate, result)
+                    continue
+                }
+
+                // If due date hasn't passed and pre-reminder is disabled, skip entirely
+                if (!claimStage && dueDate && dueDate > nowDate) {
+                    continue // Don't send collection emails for invoices not yet due
+                }
+
                 // If claim was pre_due or pre_due_sent but due date has passed, transition to collection
                 if ((claimStage === 'pre_due' || claimStage === 'pre_due_sent') && dueDate && dueDate <= nowDate) {
                     await supabaseAdmin.from('claims').update({

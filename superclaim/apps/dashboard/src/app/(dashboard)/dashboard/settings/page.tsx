@@ -625,20 +625,16 @@ function SettingsContent() {
                                     <div className="space-y-4 pt-2 border-t border-[#ffffff08] animate-in fade-in slide-in-from-top-2 duration-300">
                                         <div className="space-y-2">
                                             <Label className="text-sm text-muted-foreground">Dagar före förfall</Label>
-                                            <div className="flex gap-2">
-                                                {[3, 5, 7, 10, 14].map((d) => (
-                                                    <button
-                                                        key={d}
-                                                        onClick={() => setPreReminderDays(d)}
-                                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                                            preReminderDays === d
-                                                                ? 'bg-primary/20 text-primary border border-primary/30 shadow-[0_0_8px_rgba(0,229,204,0.15)]'
-                                                                : 'bg-[#ffffff06] text-muted-foreground border border-[#ffffff08] hover:border-[#ffffff15]'
-                                                        }`}
-                                                    >
-                                                        {d} dagar
-                                                    </button>
-                                                ))}
+                                            <div className="flex items-center gap-3">
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={90}
+                                                    value={preReminderDays}
+                                                    onChange={(e) => setPreReminderDays(Math.max(1, Math.min(90, parseInt(e.target.value) || 1)))}
+                                                    className="h-10 w-24 bg-black/20 border-white/5 text-center font-mono"
+                                                />
+                                                <span className="text-sm text-muted-foreground">dagar</span>
                                             </div>
                                             <p className="text-xs text-muted-foreground/60">
                                                 Påminnelsen skickas {preReminderDays} dagar innan förfallodatumet.
@@ -1188,22 +1184,18 @@ function SettingsContent() {
                                     <div className="py-3 border-t border-[#ffffff08]">
                                         <div className="mb-2">
                                             <Label className="text-sm">Importera kommande fakturor</Label>
-                                            <p className="text-xs text-muted-foreground mt-0.5">Hämta även fakturor som förfaller inom valt antal dagar</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">Hämta även fakturor som förfaller inom valt antal dagar (0 = av)</p>
                                         </div>
-                                        <div className="flex gap-2">
-                                            {[{ value: 0, label: 'Av' }, { value: 7, label: '7 dagar' }, { value: 14, label: '14 dagar' }, { value: 21, label: '21 dagar' }, { value: 30, label: '30 dagar' }].map((opt) => (
-                                                <button
-                                                    key={opt.value}
-                                                    onClick={() => setFortnoxImportUpcomingDays(opt.value)}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                                        fortnoxImportUpcomingDays === opt.value
-                                                            ? 'bg-[#1e7e34]/20 text-[#4ade80] border border-[#1e7e34]/30'
-                                                            : 'bg-[#ffffff06] text-muted-foreground border border-[#ffffff08] hover:border-[#ffffff15]'
-                                                    }`}
-                                                >
-                                                    {opt.label}
-                                                </button>
-                                            ))}
+                                        <div className="flex items-center gap-3">
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={90}
+                                                value={fortnoxImportUpcomingDays}
+                                                onChange={(e) => setFortnoxImportUpcomingDays(Math.max(0, Math.min(90, parseInt(e.target.value) || 0)))}
+                                                className="h-10 w-24 bg-black/20 border-white/5 text-center font-mono"
+                                            />
+                                            <span className="text-sm text-muted-foreground">dagar</span>
                                         </div>
                                         {fortnoxImportUpcomingDays > 0 && (
                                             <p className="text-xs text-muted-foreground/60 mt-1.5">Fakturor som förfaller inom {fortnoxImportUpcomingDays} dagar importeras automatiskt.</p>

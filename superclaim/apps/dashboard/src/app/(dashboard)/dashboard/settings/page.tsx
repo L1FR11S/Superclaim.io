@@ -95,6 +95,7 @@ function SettingsContent() {
     const [fortnoxLastImport, setFortnoxLastImport] = useState<string | null>(null);
     const [fortnoxLoading, setFortnoxLoading] = useState(false);
     const [importLoading, setImportLoading] = useState(false);
+    const [fortnoxImportUpcomingDays, setFortnoxImportUpcomingDays] = useState<number>(0);
 
     // Organization state
     const [orgData, setOrgData] = useState({ id: '', name: '', email: '', org_number: '', address: '', postal_code: '', city: '', phone: '' });
@@ -129,6 +130,7 @@ function SettingsContent() {
                 if (data.pre_reminder_enabled !== undefined) setPreReminderEnabled(data.pre_reminder_enabled);
                 if (data.pre_reminder_days !== undefined) setPreReminderDays(data.pre_reminder_days);
                 if (data.pre_reminder_channels) setPreReminderChannels(data.pre_reminder_channels);
+                if (data.fortnox_import_upcoming_days !== undefined) setFortnoxImportUpcomingDays(data.fortnox_import_upcoming_days || 0);
             })
             .catch(() => { })
             .finally(() => setLoading(false));
@@ -226,6 +228,7 @@ function SettingsContent() {
                     pre_reminder_enabled: preReminderEnabled,
                     pre_reminder_days: preReminderDays,
                     pre_reminder_channels: preReminderChannels,
+                    fortnox_import_upcoming_days: fortnoxImportUpcomingDays,
                 }),
             });
             if (res.ok) toast.success('Inställningar sparade ✨');
@@ -1181,6 +1184,30 @@ function SettingsContent() {
                                             className={`relative w-11 h-6 rounded-full transition-colors ${fortnoxAutoImport ? 'bg-[#1e7e34]' : 'bg-[#ffffff15]'}`}>
                                             <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${fortnoxAutoImport ? 'translate-x-5' : ''}`} />
                                         </button>
+                                    </div>
+                                    <div className="py-3 border-t border-[#ffffff08]">
+                                        <div className="mb-2">
+                                            <Label className="text-sm">Importera kommande fakturor</Label>
+                                            <p className="text-xs text-muted-foreground mt-0.5">Hämta även fakturor som förfaller inom valt antal dagar</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {[{ value: 0, label: 'Av' }, { value: 7, label: '7 dagar' }, { value: 14, label: '14 dagar' }, { value: 21, label: '21 dagar' }, { value: 30, label: '30 dagar' }].map((opt) => (
+                                                <button
+                                                    key={opt.value}
+                                                    onClick={() => setFortnoxImportUpcomingDays(opt.value)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                                        fortnoxImportUpcomingDays === opt.value
+                                                            ? 'bg-[#1e7e34]/20 text-[#4ade80] border border-[#1e7e34]/30'
+                                                            : 'bg-[#ffffff06] text-muted-foreground border border-[#ffffff08] hover:border-[#ffffff15]'
+                                                    }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {fortnoxImportUpcomingDays > 0 && (
+                                            <p className="text-xs text-muted-foreground/60 mt-1.5">Fakturor som förfaller inom {fortnoxImportUpcomingDays} dagar importeras automatiskt.</p>
+                                        )}
                                     </div>
                                     <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
                                         <div>

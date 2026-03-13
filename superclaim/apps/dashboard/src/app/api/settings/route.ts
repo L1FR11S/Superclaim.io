@@ -67,6 +67,7 @@ export async function PUT(request: Request) {
             step_delays, email_preview, agent_flow,
             sms_preview, fortnox_auto_import, sms_sender_name,
             pre_reminder_enabled, pre_reminder_days, pre_reminder_channels,
+            fortnox_import_upcoming_days,
         } = body
 
         const { data, error } = await admin
@@ -82,6 +83,7 @@ export async function PUT(request: Request) {
                 ...(pre_reminder_enabled !== undefined && { pre_reminder_enabled }),
                 ...(pre_reminder_days !== undefined && { pre_reminder_days }),
                 ...(pre_reminder_channels !== undefined && { pre_reminder_channels }),
+                ...(fortnox_import_upcoming_days !== undefined && { fortnox_import_upcoming_days }),
                 updated_at: new Date().toISOString(),
             }, { onConflict: 'org_id' })
             .select()

@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     // Hämta alla org med Fortnox kopplat + auto-import aktiverat
     const { data: orgs, error } = await admin
         .from('org_settings')
-        .select('org_id, fortnox_connected, fortnox_auto_import, agent_flow, pre_reminder_enabled, pre_reminder_days, pre_reminder_channels')
+        .select('org_id, fortnox_connected, fortnox_auto_import, agent_flow, fortnox_import_upcoming_days')
         .eq('fortnox_connected', true)
         .eq('fortnox_auto_import', true)
 
@@ -155,10 +155,10 @@ export async function POST(req: Request) {
             console.log(`[fortnox/auto-import] Org ${org.org_id}: ${orgResult.imported} importerade, ${orgResult.skipped} hoppades över`)
 
             // ─── Pre-due reminder import ────────────────────────────
-            if ((org as any).pre_reminder_enabled && (org as any).pre_reminder_days) {
-                const preReminderDays = (org as any).pre_reminder_days as number
+            const upcomingDays = (org as any).fortnox_import_upcoming_days as number | null
+            if (upcomingDays && upcomingDays > 0) {
                 try {
-                    const upcomingInvoices = await fetchUpcomingInvoices(org.org_id, preReminderDays)
+                    const upcomingInvoices = await fetchUpcomingInvoices(org.org_id, upcomingDays)
 
                     for (const invoice of upcomingInvoices) {
                         const invoiceNumber = String(invoice.DocumentNumber)
@@ -180,7 +180,7 @@ export async function POST(req: Request) {
 
                             // Calculate next_action_at: due_date - pre_reminder_days, or now if already within window
                             const dueDate = new Date(invoice.DueDate)
-                            const reminderDate = new Date(dueDate.getTime() - preReminderDays * 24 * 60 * 60 * 1000)
+                            const reminderDate = new Date(dueDate.getTime() - upcomingDays * 24 * 60 * 60 * 1000)
                             const now = new Date()
                             const nextAction = reminderDate <= now ? now : reminderDate
 

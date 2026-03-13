@@ -23,10 +23,10 @@ export async function POST() {
 
         if (!org) return NextResponse.json({ error: 'Organisation saknas' }, { status: 400 })
 
-        // Check Fortnox connection + pre-reminder settings
+        // Check Fortnox connection + import settings
         const { data: settings } = await admin
             .from('org_settings')
-            .select('fortnox_connected, agent_flow, pre_reminder_enabled, pre_reminder_days')
+            .select('fortnox_connected, agent_flow, fortnox_import_upcoming_days')
             .eq('org_id', org.id)
             .single()
 
@@ -37,11 +37,11 @@ export async function POST() {
         // Fetch overdue invoices
         const overdueInvoices = await fetchOverdueInvoices(org.id)
 
-        // Also fetch upcoming invoices if pre-reminder is enabled
+        // Also fetch upcoming invoices if configured
         let upcomingInvoices: any[] = []
-        if (settings.pre_reminder_enabled) {
-            const daysAhead = settings.pre_reminder_days ?? 5
-            upcomingInvoices = await fetchUpcomingInvoices(org.id, daysAhead)
+        const upcomingDays = settings.fortnox_import_upcoming_days
+        if (upcomingDays && upcomingDays > 0) {
+            upcomingInvoices = await fetchUpcomingInvoices(org.id, upcomingDays)
         }
 
         // Merge and deduplicate by DocumentNumber

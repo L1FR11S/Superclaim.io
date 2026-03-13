@@ -12,6 +12,7 @@ export function getGoogleAuthUrl(state: string) {
         prompt: 'consent',
         scope: [
             'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/userinfo.email',
         ],
         state,
@@ -34,6 +35,130 @@ export async function refreshGoogleToken(refreshToken: string) {
     oauth2Client.setCredentials({ refresh_token: refreshToken })
     const { credentials } = await oauth2Client.refreshAccessToken()
     return credentials
+}
+
+// ─── Gmail Watch (Pub/Sub) ──────────────────────────
+
+/**
+ * Start watching a Gmail inbox via Pub/Sub.
+ * Returns expiration timestamp and historyId.
+ */
+export async function watchGmailInbox({
+    accessToken,
+    refreshToken,
+    topicName,
+}: {
+    accessToken: string
+    refreshToken: string
+    topicName: string
+}) {
+    oauth2Client.setCredentials({ access_token: accessToken, refresh_token: refreshToken })
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
+
+    const res = await gmail.users.watch({
+        userId: 'me',
+        requestBody: {
+            topicName,
+            labelIds: ['INBOX'],
+        },
+    })
+
+    return {
+        expiration: res.data.expiration || '',  // ms timestamp string
+        historyId: res.data.historyId || '',
+    }
+}
+
+/**
+ * Stop watching a Gmail inbox (cleanup on disconnect).
+ */
+export async function stopGmailWatch({
+    accessToken,
+    refreshToken,
+}: {
+    accessToken: string
+    refreshToken: string
+}) {
+    oauth2Client.setCredentials({ access_token: accessToken, refresh_token: refreshToken })
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
+    await gmail.users.stop({ userId: 'me' })
+}
+
+/**
+ * Fetch new messages since a given historyId.
+ * Returns array of { messageId, threadId, from, subject, body }.
+ */
+export async function getGmailHistoryMessages({
+    accessToken,
+    refreshToken,
+    startHistoryId,
+}: {
+    accessToken: string
+    refreshToken: string
+    startHistoryId: string
+}) {
+    oauth2Client.setCredentials({ access_token: accessToken, refresh_token: refreshToken })
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
+
+    const history = await gmail.users.history.list({
+        userId: 'me',
+        startHistoryId,
+        historyTypes: ['messageAdded'],
+        labelId: 'INBOX',
+    })
+
+    const messages: {
+        messageId: string
+        threadId: string
+        from: string
+        subject: string
+        body: string
+    }[] = []
+
+    const historyRecords = history.data.history || []
+    for (const record of historyRecords) {
+        for (const added of record.messagesAdded || []) {
+            const msgId = added.message?.id
+            if (!msgId) continue
+
+            try {
+                const msg = await gmail.users.messages.get({
+                    userId: 'me',
+                    id: msgId,
+                    format: 'full',
+                })
+
+                const headers = msg.data.payload?.headers || []
+                const from = headers.find(h => h.name?.toLowerCase() === 'from')?.value || ''
+                const subject = headers.find(h => h.name?.toLowerCase() === 'subject')?.value || ''
+
+                // Extract body (plain text preferred)
+                let body = ''
+                const parts = msg.data.payload?.parts || []
+                const textPart = parts.find(p => p.mimeType === 'text/plain')
+                if (textPart?.body?.data) {
+                    body = Buffer.from(textPart.body.data, 'base64url').toString('utf-8')
+                } else if (msg.data.payload?.body?.data) {
+                    body = Buffer.from(msg.data.payload.body.data, 'base64url').toString('utf-8')
+                }
+
+                messages.push({
+                    messageId: msgId,
+                    threadId: msg.data.threadId || '',
+                    from,
+                    subject,
+                    body,
+                })
+            } catch (err) {
+                console.error(`[Gmail] Failed to fetch message ${msgId}:`, err)
+            }
+        }
+    }
+
+    return {
+        messages,
+        newHistoryId: history.data.historyId || startHistoryId,
+    }
 }
 
 /**

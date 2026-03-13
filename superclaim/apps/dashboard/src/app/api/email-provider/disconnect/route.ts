@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { stopGmailWatch } from '@/lib/email/gmail'
+import { deleteGraphSubscription } from '@/lib/email/microsoft'
 
 export async function POST(request: NextRequest) {
     try {
@@ -17,10 +19,36 @@ export async function POST(request: NextRequest) {
         const provider = body.provider // 'google' | 'microsoft'
 
         if (provider) {
-            // Disconnect specific provider — remove its tokens but keep others
+            // Disconnect specific provider — cleanup watch/subscription, then remove tokens
             const { data: settings } = await admin
                 .from('org_settings').select('email_provider, email_provider_tokens').eq('org_id', org.id).single()
             const allTokens = settings?.email_provider_tokens || {}
+
+            // Cleanup watch/subscription before removing tokens
+            if (provider === 'google' && allTokens.google?.access_token && allTokens.google?.refresh_token) {
+                try {
+                    await stopGmailWatch({
+                        accessToken: allTokens.google.access_token,
+                        refreshToken: allTokens.google.refresh_token,
+                    })
+                    console.info(`[Disconnect] Stopped Gmail watch for org ${org.id}`)
+                } catch (err: any) {
+                    console.warn(`[Disconnect] Failed to stop Gmail watch:`, err.message)
+                }
+            }
+
+            if (provider === 'microsoft' && allTokens.microsoft?.access_token && allTokens.microsoft?.subscription_id) {
+                try {
+                    await deleteGraphSubscription({
+                        accessToken: allTokens.microsoft.access_token,
+                        subscriptionId: allTokens.microsoft.subscription_id,
+                    })
+                    console.info(`[Disconnect] Deleted Graph subscription for org ${org.id}`)
+                } catch (err: any) {
+                    console.warn(`[Disconnect] Failed to delete Graph subscription:`, err.message)
+                }
+            }
+
             delete allTokens[provider]
 
             const update: any = { email_provider_tokens: allTokens }
@@ -47,3 +75,4 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: err.message }, { status: 500 })
     }
 }
+

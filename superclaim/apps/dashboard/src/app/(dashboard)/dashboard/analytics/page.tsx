@@ -17,7 +17,7 @@ interface AnalyticsData {
 
 interface Activity {
     id: string;
-    type: 'email' | 'sms' | 'agent_run';
+    type: 'email' | 'sms';
     direction: string;
     title: string;
     description: string;
@@ -91,11 +91,6 @@ function timeAgo(dateStr: string) {
 }
 
 function ActivityIcon({ type, direction }: { type: string; direction: string }) {
-    if (type === 'agent_run') return (
-        <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/10 flex items-center justify-center shrink-0">
-            <Bot className="h-4 w-4 text-amber-400" />
-        </div>
-    );
     if (type === 'email' && direction === 'inbound') return (
         <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/10 flex items-center justify-center shrink-0">
             <ArrowDownLeft className="h-4 w-4 text-blue-400" />

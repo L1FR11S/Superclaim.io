@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/admin'
-import { exchangeGoogleCode, getGoogleEmail } from '@/lib/email/gmail'
+import { exchangeGoogleCode, getGoogleEmail, watchGmailInbox } from '@/lib/email/gmail'
 
 export async function GET(request: NextRequest) {
     try {
@@ -23,6 +23,27 @@ export async function GET(request: NextRequest) {
             .from('org_settings').select('email_provider_tokens').eq('org_id', orgId).single()
         const allTokens = existing?.email_provider_tokens || {}
 
+        // Start Gmail watch for inbox push notifications
+        let watchExpiration = ''
+        let watchHistoryId = ''
+        const topicName = process.env.GOOGLE_PUBSUB_TOPIC || ''
+
+        if (topicName && tokens.access_token && tokens.refresh_token) {
+            try {
+                const watch = await watchGmailInbox({
+                    accessToken: tokens.access_token,
+                    refreshToken: tokens.refresh_token,
+                    topicName,
+                })
+                watchExpiration = watch.expiration
+                watchHistoryId = watch.historyId
+                console.info(`[Google Callback] Gmail watch started, expires: ${watchExpiration}`)
+            } catch (watchErr: any) {
+                console.error('[Google Callback] Failed to start Gmail watch:', watchErr.message)
+                // Continue anyway — watch can be retried by cron
+            }
+        }
+
         await admin.from('org_settings').update({
             email_provider: 'google',
             email_provider_address: email,
@@ -33,6 +54,8 @@ export async function GET(request: NextRequest) {
                     refresh_token: tokens.refresh_token,
                     expiry_date: tokens.expiry_date,
                     email,
+                    watch_expiration: watchExpiration || undefined,
+                    watch_history_id: watchHistoryId || undefined,
                 },
             },
         }).eq('org_id', orgId)
@@ -49,3 +72,4 @@ export async function GET(request: NextRequest) {
         )
     }
 }
+

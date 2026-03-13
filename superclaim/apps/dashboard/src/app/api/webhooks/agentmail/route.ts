@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { processInboundEmail, findClaimByThreadId } from '@/lib/email/inbound'
 
 /**
  * POST /api/webhooks/agentmail
@@ -15,92 +15,52 @@ export async function POST(request: Request) {
         const payload = await request.json()
         const eventType = payload.event_type || payload.type
 
-        // Debug: logga hela payloaden så vi kan se formatet
-        console.info('[Webhook] Received:', JSON.stringify(payload).slice(0, 500))
+        console.info('[Webhook/AgentMail] Received:', JSON.stringify(payload).slice(0, 500))
 
         if (eventType === 'message.received') {
-            // AgentMail skickar data under "message", fallback till "data" eller root
             const message = payload.message || payload.data || payload
             const threadId = message.thread_id
             const body = message.text || message.body || message.text_body || ''
             const subject = message.subject || ''
             const from = message.from_ || message.from || ''
 
-            console.info(`[Webhook] Parsed: thread_id=${threadId}, from=${from}, subject=${subject}`)
+            console.info(`[Webhook/AgentMail] Parsed: thread_id=${threadId}, from=${from}, subject=${subject}`)
 
             if (!threadId) {
-                console.warn('[Webhook] No thread_id found in payload')
+                console.warn('[Webhook/AgentMail] No thread_id found in payload')
                 return NextResponse.json({ message: 'No thread_id, skipping' })
             }
 
-            // Find the claim by looking up which communication has this thread
-            const { data: comm } = await supabaseAdmin
-                .from('claim_communications')
-                .select('claim_id, org_id')
-                .eq('agentmail_thread_id', threadId)
-                .eq('direction', 'outbound')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single()
-
-            if (!comm) {
-                console.warn(`[Webhook] No communication found for thread ${threadId}`)
-                return NextResponse.json({ message: 'No matching communication' })
-            }
-
-            // Get the claim details
-            const { data: claim } = await supabaseAdmin
-                .from('claims')
-                .select('id, org_id, current_step, debtor_name, status')
-                .eq('id', comm.claim_id)
-                .single()
-
+            const claim = await findClaimByThreadId(threadId)
             if (!claim) {
-                console.warn(`[Webhook] Claim ${comm.claim_id} not found`)
-                return NextResponse.json({ message: 'Claim not found' })
+                console.warn(`[Webhook/AgentMail] No claim found for thread ${threadId}`)
+                return NextResponse.json({ message: 'No matching claim' })
             }
 
-            // 1. Log the inbound communication
-            await supabaseAdmin.from('claim_communications').insert({
-                claim_id: claim.id,
-                org_id: claim.org_id,
-                step: claim.current_step,
-                channel: 'email',
-                direction: 'inbound',
+            const result = await processInboundEmail({
+                claimId: claim.id,
+                orgId: claim.org_id,
+                currentStep: claim.current_step,
+                debtorName: claim.debtor_name,
+                claimStatus: claim.status,
                 subject,
                 body,
-                agentmail_message_id: message.message_id,
-                agentmail_thread_id: threadId,
+                from,
+                messageId: message.message_id,
+                threadId,
+                provider: 'agentmail',
             })
-
-            // 2. Pause the claim to stop further auto-escalation
-            if (claim.status === 'active') {
-                await supabaseAdmin.from('claims').update({
-                    paused: true,
-                    updated_at: new Date().toISOString(),
-                }).eq('id', claim.id)
-            }
-
-            // 3. Create a notification
-            await supabaseAdmin.from('notifications').insert({
-                org_id: claim.org_id,
-                type: 'reply',
-                text: `📩 ${claim.debtor_name} har svarat på ärende`,
-                href: `/dashboard/claims/${claim.id}`,
-            })
-
-            console.info(`[Webhook] Reply from ${from} on claim ${claim.id} (${claim.debtor_name}) — claim paused`)
 
             return NextResponse.json({
-                message: 'Reply logged, claim paused, notification created',
+                message: result.skipped ? 'Duplicate, skipped' : 'Reply logged, claim paused, notification created',
                 claimId: claim.id,
             })
         }
 
-        // Acknowledge all other event types without processing
         return NextResponse.json({ message: `Event ${eventType} acknowledged` })
     } catch (err: any) {
-        console.error('[Webhook Error]', err)
+        console.error('[Webhook/AgentMail Error]', err)
         return NextResponse.json({ error: err.message }, { status: 500 })
     }
 }
+

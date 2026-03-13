@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runAgentForAllOrgs } from '@/lib/agent/engine'
 import { verifyQStashRequest } from '@/lib/qstash'
+import { renewEmailWatches } from '@/lib/email/renew'
 
 /**
  * GET /api/agent/run
@@ -23,6 +24,15 @@ export async function GET(request: NextRequest) {
         }
 
         console.log('[Agent Cron] Starting run at', new Date().toISOString())
+
+        // Renew Gmail watches and Microsoft Graph subscriptions
+        try {
+            const renewResult = await renewEmailWatches()
+            if (renewResult.renewed > 0) console.log('[Agent Cron] Renewed watches/subscriptions:', renewResult)
+        } catch (renewErr: any) {
+            console.error('[Agent Cron] Renewal error (non-fatal):', renewErr.message)
+        }
+
         const results = await runAgentForAllOrgs()
         console.log('[Agent Cron] Finished:', results)
 
@@ -61,6 +71,13 @@ export async function POST(_request: NextRequest) {
             if (!user) {
                 return NextResponse.json({ error: 'Unauthorized — login or QStash signature required' }, { status: 401 })
             }
+        }
+
+        // Renew watches/subscriptions
+        try {
+            await renewEmailWatches()
+        } catch (renewErr: any) {
+            console.error('[Agent Run] Renewal error (non-fatal):', renewErr.message)
         }
 
         const results = await runAgentForAllOrgs()

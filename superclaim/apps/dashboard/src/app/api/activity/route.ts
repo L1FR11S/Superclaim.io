@@ -27,12 +27,6 @@ export async function GET() {
             .order('created_at', { ascending: false })
             .limit(50)
 
-        const { data: runs } = await admin
-            .from('agent_runs')
-            .select('id, started_at, completed_at, claims_processed, emails_sent, sms_sent, errors, status')
-            .eq('org_id', org.id)
-            .order('started_at', { ascending: false })
-            .limit(20)
 
         // Merge and sort by timestamp
         const activities: any[] = []
@@ -56,23 +50,7 @@ export async function GET() {
             }
         }
 
-        if (runs) {
-            for (const r of runs) {
-                activities.push({
-                    id: r.id,
-                    type: 'agent_run',
-                    direction: 'system',
-                    title: 'Agentkörning',
-                    description: `Bearbetade ${r.claims_processed || 0} ärenden — ${r.emails_sent || 0} mejl, ${r.sms_sent || 0} SMS${r.errors?.length ? `, ${r.errors.length} fel` : ''}`,
-                    debtor: null,
-                    amount: null,
-                    currency: null,
-                    step: null,
-                    timestamp: r.started_at,
-                    status: r.status,
-                })
-            }
-        }
+
 
         // Sort by timestamp descending
         activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())

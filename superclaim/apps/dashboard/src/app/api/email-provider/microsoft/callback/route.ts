@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/admin'
-import { exchangeMicrosoftCode, getMicrosoftEmail } from '@/lib/email/microsoft'
+import { exchangeMicrosoftCodeDirect, getMicrosoftEmail, createGraphSubscription } from '@/lib/email/microsoft'
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
         }
 
         const { orgId } = JSON.parse(Buffer.from(state, 'base64url').toString())
-        const result = await exchangeMicrosoftCode(code)
+        
+        // Use direct OAuth2 exchange to get refresh_token
+        const result = await exchangeMicrosoftCodeDirect(code)
         const email = await getMicrosoftEmail(result.accessToken)
 
         const admin = createAdminClient()
@@ -23,6 +25,26 @@ export async function GET(request: NextRequest) {
             .from('org_settings').select('email_provider_tokens').eq('org_id', orgId).single()
         const allTokens = existing?.email_provider_tokens || {}
 
+        // Start Graph subscription for inbox monitoring
+        let subscriptionId = ''
+        let subscriptionExpiration = ''
+        const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.superclaim.io'}/api/webhooks/microsoft`
+        const webhookSecret = process.env.MICROSOFT_WEBHOOK_SECRET || ''
+
+        try {
+            const sub = await createGraphSubscription({
+                accessToken: result.accessToken,
+                webhookUrl,
+                secret: webhookSecret,
+            })
+            subscriptionId = sub.subscriptionId
+            subscriptionExpiration = sub.expiration
+            console.info(`[Microsoft Callback] Graph subscription created: ${subscriptionId}`)
+        } catch (subErr: any) {
+            console.error('[Microsoft Callback] Failed to create Graph subscription:', subErr.message)
+            // Continue anyway — subscription can be retried by cron
+        }
+
         await admin.from('org_settings').update({
             email_provider: 'microsoft',
             email_provider_address: email,
@@ -30,9 +52,11 @@ export async function GET(request: NextRequest) {
                 ...allTokens,
                 microsoft: {
                     access_token: result.accessToken,
+                    refresh_token: result.refreshToken,
                     expires_on: result.expiresOn,
-                    account: result.account,
                     email,
+                    subscription_id: subscriptionId || undefined,
+                    subscription_expiration: subscriptionExpiration || undefined,
                 },
             },
         }).eq('org_id', orgId)
@@ -49,3 +73,4 @@ export async function GET(request: NextRequest) {
         )
     }
 }
+

@@ -118,13 +118,39 @@ export async function sendMicrosoftEmail({
     subject,
     body,
     attachments,
+    inReplyTo,
 }: {
     accessToken: string
     to: string
     subject: string
     body: string
     attachments?: { filename: string; content: Buffer; contentType: string }[]
+    inReplyTo?: string
 }) {
+    // If we have a messageId to reply to, use the reply endpoint for threading
+    if (inReplyTo) {
+        const replyRes = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${inReplyTo}/reply`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: {
+                    body: { contentType: 'HTML', content: wrapBodyAsHtml(body) },
+                },
+            }),
+        })
+
+        if (!replyRes.ok) {
+            const error = await replyRes.json().catch(() => ({}))
+            console.warn(`[Microsoft] Reply failed (${JSON.stringify(error)}), falling back to new email`)
+            // Fall through to send as new email below
+        } else {
+            return { messageId: inReplyTo, threadId: '' }
+        }
+    }
+
     const message: any = {
         subject,
         body: { contentType: 'HTML', content: wrapBodyAsHtml(body) },

@@ -96,6 +96,7 @@ export async function sendEmailViaProvider({
                 to,
                 subject,
                 body,
+                inReplyTo,
                 attachments,
             })
         }

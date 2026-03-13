@@ -56,15 +56,15 @@ export async function POST(
 
         let sent: any
 
-        if (messageId && settings?.agentmail_inbox_id) {
-            // Reply in same thread via AgentMail reply-all
+        if (messageId && settings?.agentmail_inbox_id && (settings?.email_provider ?? 'agentmail') === 'agentmail') {
+            // Reply in same thread via AgentMail reply-all (only when provider is AgentMail)
             sent = await replyToMessage({
                 inboxId: settings.agentmail_inbox_id,
                 messageId,
                 body: message,
             })
         } else {
-            // New email — route via selected provider
+            // Send via configured provider (Gmail, AgentMail new email, etc.)
             sent = await sendEmailViaProvider({
                 to: claim.debtor_email,
                 subject: subject || `Re: Ärende ${claim.debtor_name}`,

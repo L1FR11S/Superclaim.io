@@ -732,6 +732,22 @@ export async function runAgentForOrg(orgId: string): Promise<AgentRunResult> {
         emailsSent: 0, smsSent: 0, errors: [], actions: [],
     }
 
+    // ── Concurrency lock: prevent duplicate runs ──────────────
+    // If another run is already in progress (started < 5 min ago), skip
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const { count: runningCount } = await supabaseAdmin
+        .from('agent_runs')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', orgId)
+        .eq('status', 'running')
+        .gte('started_at', fiveMinAgo)
+
+    if ((runningCount || 0) > 0) {
+        console.log(`[Agent] Org ${orgId}: Already running — skipping to prevent duplicates`)
+        result.errors.push('Skipped — concurrent run detected')
+        return result
+    }
+
     const { data: run } = await supabaseAdmin
         .from('agent_runs')
         .insert({ org_id: orgId, status: 'running' })

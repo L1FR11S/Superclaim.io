@@ -219,7 +219,7 @@ export async function sendGmailEmail({
     from?: string
     fromName?: string
     threadId?: string
-    inReplyTo?: string
+    inReplyTo?: string   // RFC 2822 Message-ID, e.g. <uuid@superclaim.io>
     attachments?: { filename: string; content: Buffer; contentType: string }[]
 }) {
     oauth2Client.setCredentials({
@@ -262,19 +262,28 @@ export async function sendGmailEmail({
         ? (fromName ? `From: "${fromName}" <${from}>` : `From: ${from}`)
         : undefined
 
-    // Reply headers for threading
+    // Generate RFC 2822 compliant Message-ID for threading
+    const rfc822MessageId = `<${crypto.randomUUID()}@superclaim.io>`
+
+    // Reply headers for threading (In-Reply-To MUST use RFC 2822 Message-ID, NOT Gmail internal ID)
     const replyHeaders = inReplyTo
         ? [`In-Reply-To: ${inReplyTo}`, `References: ${inReplyTo}`]
         : []
 
+    // Common headers for both paths
+    const commonHeaders = [
+        ...(fromHeader ? [fromHeader] : []),
+        `To: ${to}`,
+        `Subject: ${encodedSubject}`,
+        `Message-ID: ${rfc822MessageId}`,
+        ...replyHeaders,
+        `MIME-Version: 1.0`,
+    ]
+
     if (hasAttachments) {
         // Multipart/mixed: alternative body + attachments
         const headers = [
-            ...(fromHeader ? [fromHeader] : []),
-            `To: ${to}`,
-            `Subject: ${encodedSubject}`,
-            ...replyHeaders,
-            `MIME-Version: 1.0`,
+            ...commonHeaders,
             `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
         ].join('\r\n')
 
@@ -300,11 +309,7 @@ export async function sendGmailEmail({
     } else {
         // No attachments — just multipart/alternative
         const headers = [
-            ...(fromHeader ? [fromHeader] : []),
-            `To: ${to}`,
-            `Subject: ${encodedSubject}`,
-            ...replyHeaders,
-            `MIME-Version: 1.0`,
+            ...commonHeaders,
             `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
         ].join('\r\n')
 
@@ -342,7 +347,7 @@ export async function sendGmailEmail({
     })
 
     return {
-        messageId: result.data.id || '',
+        messageId: rfc822MessageId,  // Store RFC Message-ID for In-Reply-To in future replies
         threadId: result.data.threadId || '',
     }
 }

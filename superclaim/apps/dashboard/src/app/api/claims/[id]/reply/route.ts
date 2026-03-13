@@ -67,7 +67,8 @@ export async function POST(
             // For Gmail/other: find original thread to reply in-thread
             let gmailThreadId: string | undefined
             let originalSubject: string | undefined
-            // Lookup the original communication for its threadId and subject
+            let rfcMessageId: string | undefined
+            // Lookup the original communication for its threadId, subject, and RFC Message-ID
             const { data: origComm } = await admin
                 .from('claim_communications')
                 .select('agentmail_thread_id, agentmail_message_id, subject')
@@ -78,6 +79,7 @@ export async function POST(
                 .single()
             if (origComm?.agentmail_thread_id) gmailThreadId = origComm.agentmail_thread_id
             if (origComm?.subject) originalSubject = origComm.subject
+            if (origComm?.agentmail_message_id) rfcMessageId = origComm.agentmail_message_id
 
             // Build reply subject from original email subject
             const replySubject = subject
@@ -95,6 +97,7 @@ export async function POST(
                     agentmail_inbox_id: settings?.agentmail_inbox_id,
                 },
                 threadId: gmailThreadId,
+                inReplyTo: rfcMessageId,
             })
         }
 

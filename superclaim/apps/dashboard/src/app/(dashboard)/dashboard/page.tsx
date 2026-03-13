@@ -20,6 +20,7 @@ interface Claim {
     paused?: boolean;
     has_reply?: boolean;
     has_pending_draft?: boolean;
+    stage?: string | null;
 }
 
 interface KpiTrends {
@@ -78,6 +79,13 @@ export default function DashboardPage() {
         }))
         .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())
         .slice(0, 5);
+
+    // Helper: compute days until due for pre-due claims
+    const getDaysUntilDue = (claim: Claim) => {
+        if (!claim.due_date) return null;
+        const days = Math.ceil((new Date(claim.due_date).getTime() - Date.now()) / 86400000);
+        return days > 0 ? days : null;
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -195,6 +203,8 @@ export default function DashboardPage() {
                     <TableBody>
                         {recentClaims.map((claim) => {
                             const dueDateStr = new Date(claim.due_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
+                            const isPreDue = claim.stage === 'pre_due' || claim.stage === 'pre_due_sent';
+                            const daysUntilDue = getDaysUntilDue(claim);
                             return (
                                 <TableRow
                                     key={claim.id}
@@ -206,9 +216,22 @@ export default function DashboardPage() {
                                     <TableCell className={claim.status === 'paid' ? 'text-muted-foreground' : 'text-destructive font-medium'}>
                                         {dueDateStr}
                                     </TableCell>
-                                    <TableCell>{claim.days_overdue > 0 ? `${claim.days_overdue} dagar` : '-'}</TableCell>
                                     <TableCell>
-                                        {claim.current_step > 0 ? (
+                                        {isPreDue && daysUntilDue ? (
+                                            <span className="inline-flex items-center gap-1 text-xs text-primary">
+                                                ⏳ Förfaller om {daysUntilDue}d
+                                            </span>
+                                        ) : claim.days_overdue > 0 ? (
+                                            `${claim.days_overdue} dagar`
+                                        ) : '-'}
+                                    </TableCell>
+                                    <TableCell>
+                                        {isPreDue ? (
+                                            <div className="flex items-center gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                                                {claim.stage === 'pre_due_sent' ? 'Förvarning skickad' : 'Förvarning väntande'}
+                                            </div>
+                                        ) : claim.current_step > 0 ? (
                                             <div className="flex items-center gap-2">
                                                 <span className={`h-2 w-2 rounded-full ${claim.current_step <= 2 ? 'bg-primary animate-pulse' : 'bg-[#f59e0b]'
                                                     }`} />
@@ -218,7 +241,13 @@ export default function DashboardPage() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
-                                            <StatusBadge status={claim.status} paused={claim.paused} />
+                                            {isPreDue ? (
+                                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+                                                    ⚡ Förvarnad
+                                                </span>
+                                            ) : (
+                                                <StatusBadge status={claim.status} paused={claim.paused} />
+                                            )}
                                             {claim.has_reply && claim.paused && claim.status === 'active' && (
                                                 <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
                                                     <MessageSquareReply className="h-3 w-3" /> Svar

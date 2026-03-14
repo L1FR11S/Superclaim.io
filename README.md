@@ -23,7 +23,7 @@ Vår intelligenta AI-agent bevakar ditt affärssystem, skickar vänliga förvarn
 
 ## ✨ Huvudfunktioner
 
-- 🤖 **Blixtsnabb AI-Agent (Gemini)**: Vår agenter förstår kontext, läser inkommande svarvändningar och anpassar tonen för att bibehålla en god kundrelation samtidigt som de driver in skulden.
+- 🤖 **Blixtsnabb AI-Agent**: Vår agenter förstår kontext, läser inkommande svarvändningar och anpassar tonen för att bibehålla en god kundrelation samtidigt som de driver in skulden.
 - 🔗 **Sömlös Fortnox-Integration**: `auto-import` hämtar förfallna och kommande fakturor automatiskt. Betalningar synkas i realtid och faktura-PDF:er hämtas med ett klick.
 - 💬 **Omnichannel Kommunikation**: Nå dina kunder där de är. Agenten använder din egna domän via Google Workspace, Microsoft 365, e-post (AgentMail) eller SMS (46elks).
 - 🔀 **Visuell Flow Builder (React Flow)**: Skapa skräddarsydda indrivningsflöden direkt i en vacker och intuitiv drag-and-drop-gränssnitt.

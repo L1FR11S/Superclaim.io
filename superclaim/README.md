@@ -1,170 +1,135 @@
-# Superclaim.io
-
-**Autonom AI-baserad inkasso & fakturaindrivning**
-
-Superclaim.io är en SaaS-plattform som automatiserar faktura-till-kassa-processen med AI-agenter. Plattformen analyserar obetalda fakturor, skickar skräddarsydda påminnelser via e-post och SMS, och eskalerar ärenden till inkasso som sista utväg.
-
----
-
-## Tech Stack
-
-| Lager | Teknik |
-|-------|--------|
-| **Framework** | Next.js 16 (App Router) |
-| **Språk** | TypeScript, React 19 |
-| **Styling** | Tailwind CSS v4 (via `@tailwindcss/postcss`) |
-| **Auth & DB** | Supabase (Auth + PostgreSQL) |
-| **AI** | Google Gemini (`@google/genai`) |
-| **E-post** | AgentMail (`agentmail`) |
-| **SMS** | 46elks (Elks API) |
-| **Cache/Queue** | Upstash Redis |
-| **Flow Builder** | React Flow (`@xyflow/react`) |
-| **UI-komponenter** | Radix UI, Lucide Icons, Sonner (toasts) |
-| **Deploy** | Vercel |
+<div align="center">
+  <img src="superclaim/apps/dashboard/public/logo.svg" alt="Superclaim.io Logo" width="280"/>
+  <h1>Autonom AI-baserad inkasso & fakturaindrivning</h1>
+  <p><strong>Superclaim.io automatiserar hela din faktura-till-kassa-process med blixtsnabba AI-agenter.</strong></p>
+  
+  <p>
+    <a href="#funktioner">Funktioner</a> •
+    <a href="#arkitektur">Arkitektur</a> •
+    <a href="#kom-igång">Kom igång</a> •
+    <a href="#integrationer">Integrationer</a>
+  </p>
+</div>
 
 ---
 
-## Projektstruktur
+## 🚀 Kassaflöde på autopilot
 
+**Superclaim.io** är nästa generations SaaS-plattform för företag. Med Superclaim.io förvandlar du obetalda fakturor till kapital på banken – helt utan handpåläggning. 
+
+Vår intelligenta AI-agent bevakar ditt affärssystem, skickar vänliga förvarningar, formella påminnelser via e-post och SMS, analyserar svar från gäldenärer och eskalerar vid behov till inkasso. Smidigt för dig, schysst mot kunden och stenhårt mot sena betalningar.
+
+---
+
+## ✨ Huvudfunktioner
+
+- 🤖 **Blixtsnabb AI-Agent (Gemini)**: Vår agenter förstår kontext, läser inkommande svarvändningar och anpassar tonen för att bibehålla en god kundrelation samtidigt som de driver in skulden.
+- 🔗 **Sömlös Fortnox-Integration**: `auto-import` hämtar förfallna och kommande fakturor automatiskt. Betalningar synkas i realtid och faktura-PDF:er hämtas med ett klick.
+- 💬 **Omnichannel Kommunikation**: Nå dina kunder där de är. Agenten använder din egna domän via Google Workspace, Microsoft 365, e-post (AgentMail) eller SMS (46elks).
+- 🔀 **Visuell Flow Builder (React Flow)**: Skapa skräddarsydda indrivningsflöden direkt i en vacker och intuitiv drag-and-drop-gränssnitt.
+- 📊 **Dashboards i Världsklass**: Få stenkoll på utestående belopp, inkasserade medel (MoM-trender), och senaste händelser i den blixtsnabba och eleganta överblicken.
+- 🔔 **Proaktiva Förvarningar**: Optimera ditt kassaflöde. Låt agenten skicka en vänlig påminnelse innan förfallodagen infaller.
+
+---
+
+## 🛠 Tech Stack
+
+Projektet är byggt i en modern Turborepo-struktur och drivs av teknologier i världsklass.
+
+| Kategori | Teknologi |
+| :--- | :--- |
+| **Ramverk** | Next.js 16 (App Router), React 19 |
+| **Språk** | TypeScript |
+| **Databas & Auth** | Supabase (PostgreSQL) |
+| **AI Motor** | Google Gemini SDK (`@google/genai`) |
+| **Styling** | Tailwind CSS v4, Radix UI, Lucide Icons |
+| **Schemaläggning** | Upstash QStash & Vercel Cron |
+| **Kommunikation**| AgentMail API, 46elks (SMS) |
+| **Visuella flöden**| React Flow (`@xyflow/react`) |
+
+---
+
+## 🧩 Projektstruktur (Monorepo)
+
+Vår flexibla infrastruktur gör systemet extremt skalbart och förberett för massiv tillväxt.
+
+```text
+Superclaim.io/
+├── superclaim/
+│   ├── apps/
+│   │   ├── dashboard/   # Kundportalen - inställningar, claims, flödesbyggare (Next.js)
+│   │   ├── frontend/    # Landningssida och marknadsföring (Next.js)
+│   │   └── agent/       # Den autonoma indrivningsmotorn
+│   └── supabase/        # Databasmigrationer och schema-definitioner
 ```
-superclaim/apps/web/
-├── src/app/
-│   ├── layout.tsx              # Root layout (fonts, metadata, Toaster)
-│   ├── page.tsx                # Landing page
-│   ├── login/page.tsx          # Login / registrering
-│   ├── onboarding/page.tsx     # 3-stegs onboarding
-│   ├── (dashboard)/
-│   │   ├── layout.tsx          # Dashboard shell (sidebar + topbar)
-│   │   └── dashboard/
-│   │       ├── page.tsx        # Översikt (KPI:er + senaste ärenden)
-│   │       ├── claims/         # Ärendelista + detaljvy
-│   │       ├── analytics/      # Grafik & aktivitetslogg
-│   │       ├── emails/         # E-post/SMS-utkast & godkännande
-│   │       ├── flow-builder/   # Visuell agentflödesbyggare
-│   │       └── settings/       # Inställningar, webhook, domän
-│   └── api/
-│       ├── claims/             # CRUD ärenden + [id] detaljvy
-│       ├── agent/run/          # Kör AI-agenten på ett ärende
-│       ├── email-drafts/       # Skapa/godkänn e-postutkast
-│       ├── sms-drafts/         # Skapa/godkänn SMS-utkast
-│       ├── activity/           # Aktivitetslogg
-│       ├── analytics/          # Aggregerad statistik
-│       ├── notifications/      # Notifikationer
-│       ├── settings/           # Generella inställningar
-│       ├── domains/            # Anpassad avsändardomän
-│       ├── inbox/create/       # Skapa AgentMail-inbox
-│       └── webhooks/agentmail/ # Inkommande e-post-webhook
-├── src/components/
-│   ├── ui/                     # Shadcn-baserade (Button, Input, Label, Table)
-│   ├── shared/                 # GlassCard, Sparkline, StatusBadge, EmptyState
-│   ├── claims/                 # NewClaimModal, StepIndicator, Timeline
-│   └── flow/                   # Flow Builder-noder (React Flow)
-├── src/utils/supabase/         # Supabase client helpers
-└── public/
-    ├── logo.svg                # Logotyp
-    └── dashboard-preview.png   # Screenshot för landing page
+
+### Dashboard Core (Next.js App Router)
+- **`/api/agent/run`**: Hjärtat i maskineriet. Trigger för QStash/Cron som startar indrivningskörningen för alla anslutna organisationer.
+- **`/api/fortnox`**: Automagisk import av obetalda fordringar, kunddata och fakturafiler.
+- **`/dashboard`**: KPIs, analytik, interaktiva tabeller och sparklines. 
+- **`/dashboard/settings`**: Total kontroll. Hantera profiler, teammedlemmar, domäner och förvarningar.
+
+---
+
+## ⚙️ Kom igång
+
+Börja bygga framtidens finansverktyg idag.
+
+1. **Ställ in miljön**
+   Skapa `apps/dashboard/.env.local` och fyll i:
+   ```env
+   # Supabase
+   NEXT_PUBLIC_SUPABASE_URL=din_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=din_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=din_service_role
+   
+   # AI & Kommunikation
+   GEMINI_API_KEY=AI...
+   AGENTMAIL_API_KEY=am_...
+   ELKS_API_USERNAME=u...
+   ELKS_API_PASSWORD=...
+   
+   # Fortnox Integration
+   FORTNOX_CLIENT_SECRET=...
+   ```
+
+2. **Installera och kör**
+   ```bash
+   cd superclaim
+   npm install
+   npm run dev
+   ```
+   Dashboarden snurrar nu på `http://localhost:3000` ✨
+
+---
+
+## 📈 Standard Indrivningsflöde
+
+Indrivningen kan anpassas ned på detaljnivå per organisation:
+
+```mermaid
+graph TD
+    A[Nytt ärende (Via Fortnox)] -->|3 Dagars fördröjning| B(Vänlig Påminnelse - Mail)
+    B -->|7 Dagars fördröjning| C(Formell Påminnelse - Mail)
+    C -->|Gäldenär svarar?| D{Analys (Gemini)}
+    D -->|Ja - Positivt svar| E[Pausat för granskning]
+    D -->|Nej - Inget svar| F(Påminnelse - SMS)
+    F -->|8 Dagars fördröjning| G(Sista varningen)
+    G -->|5 Dagars fördröjning| H((Eskaleras till Inkasso))
+    
+    classDef default fill:#122220,stroke:#00e5cc,stroke-width:1px,color:#fff;
+    classDef start fill:#f5c842,stroke:#000,color:#000;
 ```
 
 ---
 
-## Kom igång
+## 🔒 Säkerhet & Drift
 
-### 1. Klona & installera
-```bash
-git clone https://github.com/din-org/superclaim.git
-cd superclaim/apps/web
-npm install
-```
+- **Säkerhet**: Row-Level Security (RLS) via Supabase för att garantera att data stannar i rätt silos. Integrationer är skyddade med QStash-signaturer.
+- **Drift**: Designad för Edge-deployment på **Vercel** för noll downtime och global prestanda.
 
-### 2. Konfigurera miljövariabler
-Skapa `apps/web/.env.local`:
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-
-# AI (Google Gemini)
-GEMINI_API_KEY=AIza...
-
-# E-post (AgentMail)
-AGENTMAIL_API_KEY=am_...
-
-# SMS (46elks)
-ELKS_API_USERNAME=u...
-ELKS_API_PASSWORD=...
-
-# Cache (Upstash Redis)
-UPSTASH_REDIS_URL=https://...
-UPSTASH_REDIS_TOKEN=AX...
-
-# Niora-integration
-NIORA_API_KEY=niora_sk_...
-NIORA_API_URL=https://api.niora.app
-NIORA_WEBHOOK_SECRET=whsec_...
-
-# App
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-### 3. Starta dev-server
-```bash
-npm run dev
-```
-Öppna [http://localhost:3000](http://localhost:3000).
-
----
-
-## API-routes
-
-| Route | Metod | Beskrivning |
-|-------|-------|-------------|
-| `/api/claims` | GET, POST | Lista/skapa ärenden |
-| `/api/claims/[id]` | GET, PUT | Detaljvy + uppdatera ärende |
-| `/api/agent/run` | POST | Kör AI-agenten på ett specifikt ärende |
-| `/api/email-drafts` | GET, POST, PUT | Hantera e-postutkast |
-| `/api/sms-drafts` | GET, POST, PUT | Hantera SMS-utkast |
-| `/api/activity` | GET | Hämta aktivitetslogg |
-| `/api/analytics` | GET | Aggregerad statistik |
-| `/api/notifications` | GET | Notifikationer + badge-counts |
-| `/api/settings` | GET, PUT | Användarinställningar |
-| `/api/domains` | GET, POST, PUT | Anpassad avsändardomän |
-| `/api/inbox/create` | POST | Skapa ny AgentMail-inbox |
-| `/api/webhooks/agentmail` | POST | Ta emot inkommande e-post |
-
----
-
-## Indrivningsflöde (Default)
-
-```
-Nytt ärende → 3 dagar → Vänlig påminnelse (e-post)
-                         ↓
-                    7 dagar → Formell påminnelse (e-post)
-                              ↓
-                         7 dagar → Gäldenär svarar?
-                                   ├─ Ja → Avsluta
-                                   └─ Nej → SMS-krav
-                                             ↓
-                                        8 dagar → Sista varning (e-post)
-                                                  ↓
-                                             5 dagar → Eskalera till inkasso
-```
-
-Flödet är konfigurerbart via den visuella **Flow Builder** (`/dashboard/flow-builder`).
-
----
-
-## Deploy (Vercel)
-
-```bash
-npm run build   # Verifiera att builden går igenom
-vercel deploy   # Deploy till Vercel
-```
-
-Lägg till alla env-variabler i Vercel Dashboard → Settings → Environment Variables.
-
----
-
-## Licens
-
-Proprietär — © 2026 Superclaim.io. Alla rättigheter förbehållna.
+<div align="center">
+  <br/>
+  <i>Byggt med precision för framtidens finanser.</i><br/>
+  © 2026 Superclaim.io. Alla rättigheter förbehållna.
+</div>

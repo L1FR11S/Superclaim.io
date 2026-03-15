@@ -48,8 +48,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const userRef = useRef<HTMLDivElement>(null);
 
     const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
     );
 
     const fetchNotifications = useCallback(async () => {
